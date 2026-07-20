@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "memoire-associative-temporelle"
+version = "0.1.0"
+description = "Prototype local de mémoire associative temporelle et explicable pour agents"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+  { name = "sxc3030-eng" }
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+]
+dependencies = []
+
+[project.scripts]
+memory-agent = "memory_agent.server:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
