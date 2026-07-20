@@ -1,14 +1,14 @@
 {
   "planetes": {
     "vue_ensemble": "8 planètes, dans l’ordre depuis le Soleil : Mercure, Vénus, Terre, Mars, Jupiter, Saturne, Uranus, Neptune. Telluriques : les 4 premières. Géantes gazeuses : Jupiter, Saturne. Géantes de glace : Uranus, Neptune.",
-    "Mercure": "Mercure. Planète tellurique, rang 1 depuis le Soleil; la plus proche et la plus petite. Diamètre équatorial : environ 4 880 km. Distance moyenne au Soleil : 58 millions de km.",
+    "Mercure": "Mercure est la plus petite planète du système solaire et la plus proche du Soleil. Type : tellurique; rang 1. Diamètre équatorial : environ 4 880 km. Distance moyenne : 58 millions de km.",
     "Vénus": "Vénus. Planète tellurique, rang 2 depuis le Soleil, classée 6e par diamètre. Diamètre équatorial : environ 12 104 km. Distance moyenne au Soleil : 108 millions de km.",
     "Terre": "Terre. Planète tellurique, rang 3 depuis le Soleil, classée 5e par diamètre. Diamètre équatorial : environ 12 756 km. Distance moyenne au Soleil : 149,7 millions de km.",
     "Mars": "Mars, la planète rouge. Planète tellurique, rang 4 depuis le Soleil, classée 7e par diamètre. Diamètre équatorial : environ 6 792 km. Distance moyenne au Soleil : 227,9 millions de km.",
-    "Jupiter": "Jupiter. Géante gazeuse, rang 5 depuis le Soleil et plus grande planète du système solaire. Diamètre équatorial : environ 142 984 km. Distance moyenne au Soleil : 778 millions de km.",
+    "Jupiter": "Jupiter est la plus grande planète du système solaire. Type : géante gazeuse; rang 5 depuis le Soleil. Diamètre équatorial : environ 142 984 km. Distance moyenne : 778 millions de km.",
     "Saturne": "Saturne, connue pour ses anneaux. Géante gazeuse, rang 6 depuis le Soleil, classée 2e par diamètre. Diamètre équatorial : environ 120 536 km. Distance moyenne au Soleil : 1,4 milliard de km.",
     "Uranus": "Uranus. Géante de glace, rang 7 depuis le Soleil, classée 3e par diamètre. Diamètre équatorial : environ 51 118 km. Distance moyenne au Soleil : 2,9 milliards de km.",
-    "Neptune": "Neptune. Géante de glace, rang 8 depuis le Soleil et planète la plus éloignée. Diamètre équatorial : environ 49 528 km. Distance moyenne au Soleil : 4,5 milliards de km.",
-    "source": "Données arrondies de NASA Science : ordre, types, rangs par taille, diamètres équatoriaux et distances moyennes au Soleil. Fichier préparé le 20 juillet 2026."
+    "Neptune": "Neptune est la planète la plus éloignée du Soleil. Type : géante de glace; rang 8. Diamètre équatorial : environ 49 528 km. Distance moyenne : 4,5 milliards de km.",
+    "source": "Les données sur les planètes viennent de NASA Science : ordre, types, rangs par taille, diamètres équatoriaux et distances moyennes. Valeurs arrondies; fichier préparé le 20 juillet 2026."
   }
 }
