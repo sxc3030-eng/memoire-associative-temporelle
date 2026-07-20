@@ -27,6 +27,7 @@ from typing import Any, Iterable
 from urllib.parse import parse_qs, unquote, urlsplit
 from uuid import UUID, uuid4
 
+from memory_agent.json_import import JSONImportError, decode_json_import_content
 from memory_agent.memory import MemoryEngine
 
 
@@ -35,7 +36,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_WEB_ROOT = PROJECT_ROOT / "web"
 DEFAULT_DB_PATH = PROJECT_ROOT / "data" / "memory.sqlite3"
 
-MAX_BODY_BYTES = 16 * 1024
+MAX_BODY_BYTES = 3 * 1024 * 1024
+MAX_CHAT_BODY_BYTES = 16 * 1024
 MAX_MESSAGE_CHARS = 4_000
 MAX_STATIC_BYTES = 2 * 1024 * 1024
 MAX_MEMORIES = 100
@@ -81,6 +83,34 @@ _FORGET_RE = re.compile(
 )
 
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+
+
+def _host_authority(value: str | None) -> tuple[str, int | None] | None:
+    """Parse une autorite HTTP et refuse les formes ambigues."""
+
+    if not value:
+        return None
+    candidate = value.strip()
+    if not candidate or "," in candidate or any(character.isspace() for character in candidate):
+        return None
+    try:
+        parsed = urlsplit(f"//{candidate}")
+        port = parsed.port
+    except ValueError:
+        return None
+    if (
+        not parsed.netloc
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.path
+        or parsed.query
+        or parsed.fragment
+    ):
+        return None
+    hostname = (parsed.hostname or "").rstrip(".").casefold()
+    if hostname not in _LOOPBACK_HOSTS:
+        return None
+    return hostname, port
 
 
 def _json_default(value: Any) -> Any:
@@ -363,14 +393,36 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
         self._send_json(status, {"ok": False, "error": message})
 
     def _same_origin_or_non_browser(self) -> bool:
+        host_authority = _host_authority(self.headers.get("Host"))
+        if host_authority is None:
+            return False
+        host_name, host_port = host_authority
+        expected_port = int(self.server.server_port)
+        if (host_port if host_port is not None else 80) != expected_port:
+            return False
+
         origin = self.headers.get("Origin")
         if origin is None:
             return True
-        parsed = urlsplit(origin)
-        host = self.headers.get("Host", "")
-        return parsed.scheme in {"http", "https"} and parsed.netloc.casefold() == host.casefold()
+        try:
+            parsed = urlsplit(origin)
+            origin_port = parsed.port
+        except ValueError:
+            return False
+        origin_name = (parsed.hostname or "").rstrip(".").casefold()
+        return (
+            parsed.scheme.casefold() == "http"
+            and parsed.username is None
+            and parsed.password is None
+            and not parsed.path
+            and not parsed.query
+            and not parsed.fragment
+            and origin_name == host_name
+            and origin_name in _LOOPBACK_HOSTS
+            and (origin_port if origin_port is not None else 80) == expected_port
+        )
 
-    def _read_json_object(self) -> dict[str, Any] | None:
+    def _read_json_object(self, *, max_bytes: int = MAX_BODY_BYTES) -> dict[str, Any] | None:
         content_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
         if content_type != "application/json":
             self._error(HTTPStatus.UNSUPPORTED_MEDIA_TYPE, "Content-Type application/json requis.")
@@ -387,7 +439,7 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
         except ValueError:
             self._error(HTTPStatus.BAD_REQUEST, "Content-Length invalide.")
             return None
-        if length < 0 or length > MAX_BODY_BYTES:
+        if length < 0 or length > max_bytes:
             self._error(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, "Requête trop volumineuse.")
             return None
         try:
@@ -415,6 +467,13 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
     def _handle_get(self, *, head_only: bool) -> None:
         parsed = urlsplit(self.path)
         path = parsed.path
+        if path.startswith("/api/") and not self._same_origin_or_non_browser():
+            self._send_json(
+                HTTPStatus.FORBIDDEN,
+                {"ok": False, "error": "Hote ou origine non autorise."},
+                head_only=head_only,
+            )
+            return
         if path == "/favicon.ico":
             self._send_bytes(
                 HTTPStatus.NO_CONTENT,
@@ -552,7 +611,7 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802 - API de BaseHTTPRequestHandler
         path = urlsplit(self.path).path
-        if path != "/api/chat":
+        if path not in {"/api/chat", "/api/import"}:
             if path.startswith("/api/"):
                 self._error(HTTPStatus.NOT_FOUND, "Route API inconnue.")
             else:
@@ -561,8 +620,13 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
         if not self._same_origin_or_non_browser():
             self._error(HTTPStatus.FORBIDDEN, "Origine non autorisée.")
             return
-        payload = self._read_json_object()
+        payload = self._read_json_object(
+            max_bytes=MAX_CHAT_BODY_BYTES if path == "/api/chat" else MAX_BODY_BYTES
+        )
         if payload is None:
+            return
+        if path == "/api/import":
+            self._handle_json_import(payload)
             return
         message = payload.get("message")
         if not isinstance(message, str):
@@ -586,6 +650,62 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
             self._error(HTTPStatus.INTERNAL_SERVER_ERROR, "Le moteur de mémoire a rencontré une erreur.")
             return
         self._send_json(HTTPStatus.OK, {"ok": True, **response})
+
+    def _handle_json_import(self, payload: dict[str, Any]) -> None:
+        mode = payload.get("mode")
+        if mode not in {"preview", "commit"}:
+            self._error(HTTPStatus.BAD_REQUEST, "mode doit etre 'preview' ou 'commit'.")
+            return
+        has_data = "data" in payload
+        has_content = "content" in payload
+        if has_data == has_content:
+            self._error(
+                HTTPStatus.BAD_REQUEST,
+                "Fournissez exactement un champ data ou content.",
+            )
+            return
+        filename = payload.get("filename")
+        try:
+            data = (
+                decode_json_import_content(payload["content"])
+                if has_content
+                else payload["data"]
+            )
+            with self.server.engine_lock:
+                if mode == "preview":
+                    result = self.server.engine.preview_json_import(
+                        data,
+                        filename=filename,
+                    )
+                else:
+                    import_id = payload.get("import_id")
+                    if not isinstance(import_id, str) or not import_id.strip():
+                        raise JSONImportError(
+                            "import_id retourne par l'aperçu est requis pour confirmer"
+                        )
+                    result = self.server.engine.import_json(
+                        data,
+                        import_id=import_id,
+                        filename=filename,
+                    )
+        except JSONImportError as error:
+            message = _clean_text(error, 400) or "Import JSON invalide."
+            status = (
+                HTTPStatus.REQUEST_ENTITY_TOO_LARGE
+                if "depasse la limite" in message.casefold()
+                or "profondeur maximale" in message.casefold()
+                else HTTPStatus.BAD_REQUEST
+            )
+            self._error(status, message)
+            return
+        except (TypeError, ValueError) as error:
+            self._error(HTTPStatus.BAD_REQUEST, _clean_text(error, 400) or "Import JSON invalide.")
+            return
+        except Exception:
+            LOGGER.exception("Erreur pendant l'import JSON")
+            self._error(HTTPStatus.INTERNAL_SERVER_ERROR, "L'import JSON a rencontre une erreur.")
+            return
+        self._send_json(HTTPStatus.OK, {"ok": True, "mode": mode, **result})
 
     def _chat(self, message: str) -> dict[str, Any]:
         observe_match = _OBSERVE_RE.match(message)

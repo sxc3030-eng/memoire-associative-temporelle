@@ -441,7 +441,97 @@ Ces catégories forment l'énumération `provenance.type`; `source_id`, `trust_l
 
 Le prototype local ne doit pas être présenté comme prêt pour des données personnelles réelles avant des tests de sécurité dédiés.
 
-## 15. Stockage recommandé pour le MVP
+## 15. Pipeline d'import JSON
+
+L'import JSON est un adaptateur d'entrée : il ne remplace ni `observe` ni le journal épisodique. Il transforme un document hiérarchique en propositions de souvenirs traçables, puis laisse l'utilisateur confirmer l'écriture.
+
+```mermaid
+flowchart LR
+    F["Fichier JSON local"] --> V["Validation des limites"]
+    V --> D["Décodage objet ou tableau"]
+    D --> P["Parcours déterministe des feuilles"]
+    P --> C["Catégorisation par clé, chemin et type"]
+    C --> A["Aperçu sans écriture"]
+    A --> Q{"Confirmation utilisateur ?"}
+    Q -->|"non"| X["Abandon sans effet"]
+    Q -->|"oui"| O["observe avec provenance d'import"]
+    O --> M["Souvenirs et statistiques actualisés"]
+```
+
+### 15.1 Contrat local
+
+Le même point d'entrée sert à l'aperçu et à la confirmation :
+
+```text
+POST /api/import
+{
+  "mode": "preview" | "commit",
+  "filename": "souvenirs.json",
+  "content": "{ ... texte JSON UTF-8 original ... }",
+  "import_id": "requis au commit après un aperçu"
+}
+```
+
+L'interface envoie `content` afin que Python décode lui-même les nombres et conserve exactement les entiers supérieurs à `2^53`. Un client Python peut fournir `data` déjà décodé à la place, mais jamais les deux champs dans la même requête.
+
+La réponse commune contient `ok`, `mode`, `import_id`, `digest`, `summary` et le décompte `categories`. L'aperçu peut inclure les `items` proposés ; la confirmation ajoute le résultat de création et le nombre de doublons. Le serveur recalcule l'empreinte au lieu de faire confiance à un identifiant fourni par le navigateur. L'identifiant lie le contenu et le nom nettoyé sous la forme `json-v1-<sha256 canonique>-<empreinte du nom>`.
+
+### 15.2 Décodage et catégories
+
+- La racine acceptée est un objet ou un tableau JSON ; un document invalide est refusé avant tout accès à la mémoire.
+- Le parcours respecte l'ordre des tableaux et construit pour chaque valeur un chemin stable, par exemple `$.projets[0].nom`.
+- Les valeurs `null`, les chaînes vides et les conteneurs vides ne créent pas de faux souvenirs ; les chaînes, nombres et booléens utiles deviennent des candidats textuels bornés. Une valeur trop longue est refusée plutôt que mémorisée partiellement.
+- Lorsque la première clé racine désigne une section objet ou tableau, son nom normalisé devient la catégorie, par exemple `projets` ou `evenements`. Les enveloppes génériques (`data`, `items`, `records`, `results`, `payload`, etc.) ne masquent pas les clés réellement informatives. Sinon, une heuristique déterministe choisit `identite`, `temps`, `localisation`, `preference`, `relation`, `finance`, `activite`, `mesure` ou `general` à partir du nom de la clé, du chemin et du type de valeur.
+- Une catégorie est une étiquette d'organisation, pas une assertion sémantique. Au prototype, l'aperçu la montre mais ne permet pas encore de la corriger.
+- Chaque proposition conserve au minimum `json_path`, `category`, une représentation textuelle et la référence de provenance de l'import.
+
+Exemple :
+
+```json
+{
+  "profil": {"nom": "Alex", "ville": "Montréal"},
+  "projets": [
+    {"nom": "Atlas", "prochaine_action": "préparer le prototype"}
+  ]
+}
+```
+
+Ce document peut produire des candidats issus de `$.profil.nom`, `$.profil.ville`, `$.projets[0].nom` et `$.projets[0].prochaine_action`. Le fichier complet d'exemple est disponible dans `examples/souvenirs-exemple.json`.
+
+### 15.3 Aperçu, validation et idempotence
+
+`preview` ne crée aucun événement. `commit` doit reprendre l'identifiant d'import émis par l'aperçu et présenter les mêmes données sous le même nom nettoyé ; toute modification entre les deux étapes invalide la confirmation. Une empreinte SHA-256 de la représentation JSON canonique, combinée au chemin JSON, donne une clé d'idempotence stable : rejouer le même import ne renforce pas artificiellement les mêmes éléments. Une version réellement modifiée obtient une nouvelle empreinte et reste distinguable.
+
+Le nom du fichier est informatif et nettoyé ; il ne devient jamais un chemin lu par le serveur. Le document brut n'est pas conservé après traitement. Puisque l'utilisateur confirme explicitement l'aperçu, les événements utilisent la provenance existante `user_confirmed`, complétée par `medium: json_import`, `import_id`, `digest`, `filename`, `json_path` et `category`. Le contexte rappelable reprend l'origine, la catégorie, le chemin, le nom et l'empreinte afin d'expliquer ou de supprimer leur influence sans inventer un nouveau niveau de confiance. Chaque feuille JSON forme son propre épisode : la catégorie reste un contexte de classement, sans créer une fausse transition temporelle entre deux champs voisins.
+
+La confirmation écrit les feuilles séquentiellement. Elle est sûre à reprendre grâce aux clés d'idempotence, mais elle ne promet pas encore une transaction unique pour tout le fichier : après une panne imprévue, rejouer le même import complète les éléments manquants sans doubler ceux déjà créés.
+
+### 15.4 Bornes et sécurité
+
+Le prototype refuse un corps HTTP supérieur à 3 Mio, un fichier ou des données JSON canoniques supérieurs à 1 Mio, une profondeur supérieure à 32, plus de 10 000 nœuds, plus de 200 souvenirs proposés, plus de 10 000 concepts textuels cumulés ou un texte de plus de 4 000 caractères. Ces bornes protègent contre les documents profondément imbriqués, les très grands tableaux, les valeurs lexicalement très denses, le coût quadratique du moteur expérimental et l'épuisement de mémoire.
+
+Le contenu est toujours traité comme une donnée : aucune évaluation de code, résolution de chemin, inclusion de fichier ou requête réseau n'est effectuée. Les clés comme `__proto__` ne doivent jamais modifier les objets internes et toute clé répétée dans un même objet est refusée au lieu d'être écrasée silencieusement. Le serveur refuse aussi tout en-tête `Host` ou `Origin` qui ne désigne pas explicitement sa boucle locale, afin de bloquer le DNS rebinding. Les messages d'erreur indiquent le problème sans recopier tout le contenu. Puisque SQLite n'est pas chiffré, l'aperçu doit rappeler de ne pas importer de mot de passe, jeton, secret ou dossier personnel sensible.
+
+### 15.5 Matrice de validation
+
+| Cas | Résultat attendu |
+|---|---|
+| Objet imbriqué et tableaux | chemins stables, ordre des tableaux préservé et catégories reproductibles |
+| Aperçu valide | résumé et candidats retournés, statistiques de mémoire inchangées |
+| Confirmation inchangée | candidats enregistrés avec provenance d'import |
+| Même document rejoué | éléments signalés comme doublons, aucun renforcement supplémentaire |
+| Une valeur réellement modifiée | nouvel import distingué, ancienne provenance toujours explicable |
+| JSON invalide ou racine scalaire | refus clair et aucune écriture |
+| Identifiant d'aperçu associé à d'autres données | confirmation refusée et aucune écriture |
+| Limite dépassée | refus avant création du premier souvenir |
+| `null`, conteneur vide et chaîne vide | aucun souvenir artificiel |
+| Accents, emoji, nombres et booléens | représentation déterministe sans perte d'Unicode |
+| Entier supérieur à `2^53` envoyé comme texte brut | valeur exacte conservée par le décodage Python |
+| Deux clés identiques dans un même objet | document refusé, aucune valeur écrasée silencieusement |
+| `Host` ou `Origin` non local | accès refusé avant toute lecture ou écriture de mémoire |
+| Clé `__proto__` ou texte ressemblant à du code | simple donnée inerte, aucun effet sur le programme |
+
+## 16. Stockage recommandé pour le MVP
 
 - SQLite en mode WAL comme persistance locale ;
 - tables relationnelles pour les entités, motifs, continuations et preuves ;
@@ -452,19 +542,20 @@ Le prototype local ne doit pas être présenté comme prêt pour des données pe
 
 Une base de graphes ou PostgreSQL pourra être évaluée après mesure. Changer de moteur avant d'observer une limite réelle ajouterait de la complexité sans valider l'idée.
 
-## 16. Contrat d'API conceptuel
+## 17. Contrat d'API conceptuel
 
 ```text
 POST   /observe
 POST   /recall
 POST   /predict
 POST   /forget
+POST   /api/import
 GET    /health
 ```
 
 `/recall` et `/predict` incluent toujours leur explication. Les noms définitifs pourront changer. Les contrats internes devraient rester indépendants du transport HTTP afin de pouvoir intégrer directement le moteur dans un agent local.
 
-## 17. Risques techniques principaux
+## 18. Risques techniques principaux
 
 | Risque | Réponse initiale |
 |---|---|
@@ -478,8 +569,11 @@ GET    /health
 | Fuite entre utilisateurs | Portée obligatoire dans toutes les clés et requêtes |
 | Suppression incohérente | Étendues de preuve uniques et recalcul transactionnel |
 | Dérive temporelle | Compteurs bruts + support décroissant + scénarios de changement de régime |
+| Import JSON trompeur | Aperçu obligatoire, catégories présentées comme heuristiques et provenance par chemin |
+| Import volumineux ou hostile | Bornes de taille/profondeur/nœuds, aucun code exécuté et aucun fichier brut archivé |
+| Réimportation en boucle | Empreinte du document + chemin JSON comme clé d'idempotence |
 
-## 18. Décisions à prendre par expérimentation
+## 19. Décisions à prendre par expérimentation
 
 1. Chronologie durable ou véritable tampon circulaire ?
 2. Frontière automatique ou explicite des épisodes ?
@@ -488,6 +582,8 @@ GET    /health
 5. Politique de décroissance par type de relation ?
 6. Fusion de concepts : automatique, suggérée ou uniquement manuelle ?
 7. Valeur de la propagation d'activation face à une recherche épisodique plus simple ?
-8. Quand ajouter des embeddings sans perdre l'explicabilité ?
+8. Catégories fixes, vocabulaire configurable ou correction manuelle dans l'aperçu JSON ?
+9. Faut-il conserver uniquement l'empreinte d'un import ou permettre l'archivage chiffré et volontaire de sa source ?
+10. Quand ajouter des embeddings sans perdre l'explicabilité ?
 
 Le [plan de création](PLAN_DE_CREATION.md) transforme ces décisions en jalons et en expériences mesurables.

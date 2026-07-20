@@ -1,0 +1,29 @@
+{
+  "profil": {
+    "nom": "Alex",
+    "ville": "Montréal",
+    "langue": "français"
+  },
+  "preferences": {
+    "cafe": "espresso",
+    "moment_de_concentration": "le matin"
+  },
+  "projets": [
+    {
+      "nom": "Atlas",
+      "statut": "actif",
+      "prochaine_action": "préparer le prototype"
+    },
+    {
+      "nom": "Orbite",
+      "statut": "en pause"
+    }
+  ],
+  "evenements": [
+    {
+      "date": "2026-07-20",
+      "action": "création du prototype de mémoire",
+      "lieu": "Montréal"
+    }
+  ]
+}

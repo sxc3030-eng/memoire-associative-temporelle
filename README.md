@@ -48,6 +48,28 @@ De quoi te souviens-tu au sujet de Rio ?
 Qu'est-ce qui vient après Rio aime ?
 ```
 
+### Importer des souvenirs JSON
+
+Le bouton **Importer JSON** de l'interface accepte un fichier `.json` UTF-8 contenant un objet ou une liste, jusqu'à 1 Mio et 200 souvenirs utiles. On peut le choisir ou le glisser dans la fenêtre guidée. L'import reste local et suit deux étapes :
+
+1. **Aperçu** — le fichier est validé et décodé, ses valeurs utiles sont transformées en souvenirs proposés et rangées dans des catégories informatives ; rien n'est encore écrit dans la mémoire.
+2. **Confirmation** — le bouton **Importer … souvenirs** enregistre les éléments valides, puis l'interface actualise les statistiques et les souvenirs. Chaque élément garde son nom de fichier, son chemin JSON et un identifiant d'import.
+
+Un fichier d'essai est fourni dans [`examples/souvenirs-exemple.json`](examples/souvenirs-exemple.json). Il contient un profil, des préférences, des projets et un événement. Les objets imbriqués et les tableaux sont parcourus sans exécuter leur contenu ; par exemple, la valeur `Atlas` garde le chemin `$.projets[0].nom` comme élément de provenance.
+
+Après l'import, on peut interroger naturellement la mémoire :
+
+```text
+Que sais-tu de Atlas ?
+De quoi te souviens-tu au sujet de Montréal ?
+Rappelle-moi espresso.
+Explique pourquoi tu te souviens de préparer le prototype.
+```
+
+Le classement automatique est une aide d'organisation fondée sur les noms de clés, les chemins et les types JSON. Une grande section racine, comme `projets`, devient sa propre catégorie ; les enveloppes génériques comme `data` ou `items` sont ignorées au profit des clés utiles. Les valeurs isolées utilisent les familles `identite`, `temps`, `localisation`, `preference`, `relation`, `finance`, `activite`, `mesure` ou `general`. Les catégories de l'aperçu ne sont pas encore modifiables. Ce n'est pas une compréhension sémantique garantie.
+
+Limites du prototype : fichier et données JSON canoniques de 1 Mio au maximum, enveloppe HTTP interne de 3 Mio, profondeur de 32 niveaux, 10 000 nœuds JSON, 200 souvenirs proposés, 10 000 concepts textuels au total et 4 000 caractères par texte. Une valeur dépassant la borne est refusée plutôt que tronquée. Le texte original sert seulement au décodage et n'est pas conservé comme fichier. Les très grands entiers sont transmis sans l'arrondi de JavaScript et les clés dupliquées sont refusées. Réimporter exactement le même contenu ne duplique pas les mêmes chemins ; un contenu modifié constitue une nouvelle version logique.
+
 Chaque souvenir créé reçoit un identifiant. Pour le supprimer réellement :
 
 ```text
@@ -68,6 +90,8 @@ python -m unittest discover -s tests -v      # macOS ou Linux
 - le serveur refuse toute adresse autre que la boucle locale ;
 - aucune authentification n'est fournie, car le prototype n'est pas accessible depuis le réseau ;
 - les souvenirs restent dans `data/memory.sqlite3` et ne sont envoyés à aucun service externe ;
+- l'aperçu JSON doit être vérifié avant l'import, surtout lorsqu'un fichier contient des données personnelles ;
+- le contenu JSON est traité comme une donnée, jamais comme du code, et le fichier source complet n'est pas archivé ;
 - la base n'est pas encore chiffrée : ne pas y placer de secrets ;
 - le moteur est lexical et expérimental, pas un assistant général ni un système prêt pour la production.
 

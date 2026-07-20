@@ -12,7 +12,8 @@ Ce plan vise un premier moteur petit, local, persistant et explicable. Le but n'
 4. prédire la suite d'une séquence avec un historique et un contexte ;
 5. expliquer chaque résultat ;
 6. supprimer un événement et recalculer son influence ;
-7. redémarrer sans perdre ni modifier la mémoire.
+7. redémarrer sans perdre ni modifier la mémoire ;
+8. prévisualiser puis importer un objet ou tableau JSON avec catégories et provenance.
 
 ## 2. Périmètre fonctionnel
 
@@ -26,6 +27,7 @@ Ce plan vise un premier moteur petit, local, persistant et explicable. Le but n'
 - prédiction à ordre variable ;
 - provenance, explication et suppression ;
 - API locale pour connecter un agent.
+- import JSON local avec validation, aperçu et confirmation explicite.
 
 ### Reporté après validation
 
@@ -205,6 +207,7 @@ Attendu : le support brut conserve l'histoire, mais le score avec décroissance 
 - définir l'ordre entre événements et la règle pour plusieurs concepts dans un même événement ;
 - écrire les sept scénarios de référence ;
 - définir les formats d'entrée et de sortie ;
+- définir le contrat d'import JSON, ses catégories heuristiques et ses limites ;
 - versionner la première formule de classement.
 
 **Critères d'acceptation**
@@ -339,6 +342,11 @@ Attendu : le support brut conserve l'histoire, mais le score avec décroissance 
 - créer un adaptateur simple avant et après un appel de modèle ;
 - définir quand l'agent peut écrire, lire et confirmer un souvenir ;
 - ajouter des journaux techniques sans contenu sensible.
+- exposer `POST /api/import` avec les modes `preview` et `commit` ;
+- parcourir objets et tableaux en conservant un chemin JSON stable ;
+- catégoriser les propositions par règles déterministes et afficher leur résumé avant confirmation ;
+- rendre le rejeu idempotent avec l'empreinte du document et le chemin de chaque valeur ;
+- appliquer les limites de taille, profondeur, nœuds, souvenirs et longueur de texte.
 
 ```mermaid
 sequenceDiagram
@@ -363,6 +371,10 @@ sequenceDiagram
 - la portée d'un agent ne permet pas de lire celle d'un autre ;
 - chaque injection de mémoire dans le modèle peut être auditée ;
 - l'agent fonctionne encore si la mémoire est temporairement indisponible.
+- l'aperçu JSON n'écrit rien et une confirmation portant sur des données modifiées est refusée ;
+- le même fichier réimporté ne duplique pas les souvenirs déjà créés ;
+- un document invalide, trop profond ou trop volumineux échoue sans écriture partielle ;
+- chaque souvenir importé peut être relié à son import et à son chemin JSON.
 
 **Livrable :** service local et exemple d'intégration d'agent.
 
@@ -417,6 +429,8 @@ sequenceDiagram
 - événement en retard ;
 - suppression et reconstruction ;
 - appels API concurrents légers.
+- aperçu JSON sans effet de bord, confirmation, rejeu identique et import d'une version modifiée ;
+- import d'un objet imbriqué, d'un tableau et des types scalaires acceptés.
 
 ### Tests adversariaux
 
@@ -426,6 +440,9 @@ sequenceDiagram
 - entrée hors portée ;
 - source générée essayant de se déclarer observée ;
 - payload très volumineux ou mal formé.
+- JSON profondément imbriqué, tableau massif, chaîne trop longue et clé hostile telle que `__proto__` ;
+- modification des données entre l'aperçu et la confirmation ;
+- contenu ressemblant à du code, qui doit rester une simple chaîne.
 
 ## 9. Mesures d'évaluation
 
@@ -464,6 +481,8 @@ Le prototype doit être meilleur sur au moins un besoin mesuré, et pas seulemen
 | Suppression impossible | étendues de preuve par événement et reconstruction testée |
 | Concept mal fusionné | alias auditables et fusion réversible |
 | Surarchitecture | SQLite et algorithmes simples jusqu'à mesure contraire |
+| Mauvaise catégorie JSON | aperçu obligatoire, catégorie informative et chemin source conservé |
+| Import dupliqué ou hostile | empreinte + chemin, limites strictes et traitement en données uniquement |
 
 ## 12. Liste initiale d'issues GitHub
 
@@ -484,6 +503,9 @@ Le prototype doit être meilleur sur au moins un besoin mesuré, et pas seulemen
 - [ ] Ajouter la suppression forte avec reconstruction.
 - [ ] Exposer l'API locale.
 - [ ] Créer l'exemple d'intégration avec un agent.
+- [x] Ajouter l'import JSON en deux temps avec aperçu, limites et idempotence.
+- [ ] Permettre plus tard la correction manuelle des catégories avant confirmation.
+- [ ] Ajouter un manifeste et l'oubli groupé par `import_id`.
 - [ ] Construire le benchmark de 100 000 occurrences.
 - [ ] Publier le premier rapport d'évaluation.
 

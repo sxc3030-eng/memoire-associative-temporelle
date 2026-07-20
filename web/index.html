@@ -272,6 +272,29 @@
       opacity: 0.6;
     }
 
+    .panel-actions {
+      display: flex;
+      flex: 0 0 auto;
+      gap: 8px;
+    }
+
+    .import-button {
+      color: var(--green-dark);
+      border-color: rgba(31, 107, 85, 0.28);
+      background: var(--green-pale);
+    }
+
+    .visually-hidden {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important;
+      white-space: nowrap !important;
+      border: 0 !important;
+    }
+
     .quick-prompts {
       display: flex;
       gap: 8px;
@@ -653,6 +676,397 @@
       background: #fff8f6;
     }
 
+    .import-dialog {
+      width: min(620px, calc(100vw - 28px));
+      max-height: min(820px, calc(100vh - 28px));
+      padding: 0;
+      overflow: hidden;
+      border: 1px solid var(--line-strong);
+      border-radius: 24px;
+      color: var(--ink);
+      background: var(--surface-solid);
+      box-shadow: 0 28px 90px rgba(23, 34, 31, 0.25);
+    }
+
+    .import-dialog::backdrop {
+      background: rgba(23, 34, 31, 0.48);
+      backdrop-filter: blur(4px);
+    }
+
+    .import-dialog-inner {
+      display: flex;
+      max-height: min(820px, calc(100vh - 28px));
+      flex-direction: column;
+    }
+
+    .import-dialog-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 24px 26px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .import-dialog-header h2 {
+      font-size: clamp(1.35rem, 4vw, 1.75rem);
+    }
+
+    .import-dialog-header .intro {
+      margin-top: 7px;
+      font-size: 0.82rem;
+    }
+
+    .dialog-close {
+      width: 39px;
+      flex: 0 0 39px;
+      padding: 7px;
+      font-size: 1.05rem;
+    }
+
+    .import-body {
+      overflow-y: auto;
+      padding: 22px 26px 8px;
+      scrollbar-color: #cad1ca transparent;
+      scrollbar-width: thin;
+    }
+
+    .import-stage[hidden] {
+      display: none;
+    }
+
+    .file-drop {
+      display: grid;
+      min-height: 180px;
+      padding: 25px;
+      place-items: center;
+      border: 1.5px dashed #9fb9ac;
+      border-radius: 18px;
+      text-align: center;
+      background: #f6faf7;
+      cursor: pointer;
+      transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+    }
+
+    .file-drop:hover,
+    .file-drop.is-dragging {
+      border-color: var(--green);
+      background: var(--green-pale);
+      transform: translateY(-1px);
+    }
+
+    .file-drop:focus-within {
+      outline: 3px solid rgba(217, 137, 67, 0.55);
+      outline-offset: 2px;
+    }
+
+    .file-drop-icon {
+      display: grid;
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 12px;
+      place-items: center;
+      border-radius: 15px;
+      color: var(--green-dark);
+      background: #fff;
+      box-shadow: 0 7px 18px rgba(31, 107, 85, 0.10);
+      font-size: 1.25rem;
+    }
+
+    .file-drop-title {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 800;
+    }
+
+    .file-drop-help,
+    .privacy-note {
+      display: block;
+      color: var(--ink-soft);
+      font-size: 0.75rem;
+      line-height: 1.5;
+    }
+
+    .privacy-note {
+      margin: 12px 2px 0;
+    }
+
+    .privacy-note::before {
+      margin-right: 6px;
+      color: var(--green);
+      content: "✓";
+      font-weight: 900;
+    }
+
+    .import-status-box {
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: #fafaf6;
+    }
+
+    .import-file-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .import-file-badge {
+      display: grid;
+      width: 43px;
+      height: 43px;
+      flex: 0 0 43px;
+      place-items: center;
+      border-radius: 13px;
+      color: #8b5528;
+      background: var(--amber-pale);
+      font-size: 0.68rem;
+      font-weight: 850;
+    }
+
+    .import-file-name {
+      display: block;
+      overflow: hidden;
+      font-size: 0.88rem;
+      font-weight: 800;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .import-file-size {
+      display: block;
+      margin-top: 3px;
+      color: var(--ink-soft);
+      font-size: 0.71rem;
+    }
+
+    .progress-track {
+      height: 7px;
+      margin-top: 18px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #e3e8e2;
+    }
+
+    .progress-track::after {
+      display: block;
+      width: 42%;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--green);
+      content: "";
+      animation: import-progress 1.05s infinite ease-in-out;
+    }
+
+    @keyframes import-progress {
+      from { transform: translateX(-110%); }
+      to { transform: translateX(340%); }
+    }
+
+    .import-status-text {
+      margin: 11px 0 0;
+      color: var(--ink-soft);
+      font-size: 0.76rem;
+      line-height: 1.45;
+    }
+
+    .preview-summary {
+      display: grid;
+      grid-template-columns: 0.7fr 1.3fr;
+      gap: 10px;
+      margin-bottom: 17px;
+    }
+
+    .preview-count,
+    .preview-file {
+      min-width: 0;
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: #fafaf6;
+    }
+
+    .preview-count strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--green-dark);
+      font-family: var(--font-display);
+      font-size: 1.8rem;
+      line-height: 1;
+    }
+
+    .preview-summary small {
+      display: block;
+      overflow: hidden;
+      color: var(--ink-soft);
+      font-size: 0.7rem;
+      line-height: 1.45;
+      text-overflow: ellipsis;
+    }
+
+    .preview-file strong {
+      display: block;
+      margin-bottom: 4px;
+      overflow: hidden;
+      font-size: 0.82rem;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .category-list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .category-item {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 11px 12px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: #fff;
+    }
+
+    .category-name {
+      min-width: 0;
+      overflow: hidden;
+      font-size: 0.8rem;
+      font-weight: 780;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .category-count {
+      padding: 4px 8px;
+      border-radius: 999px;
+      color: var(--green-dark);
+      background: var(--green-pale);
+      font-size: 0.66rem;
+      font-weight: 800;
+    }
+
+    .preview-examples {
+      margin-top: 17px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: #fafaf6;
+    }
+
+    .preview-examples summary {
+      padding: 11px 13px;
+      color: var(--green-dark);
+      cursor: pointer;
+      font-size: 0.76rem;
+      font-weight: 760;
+    }
+
+    .example-list {
+      display: grid;
+      gap: 7px;
+      margin: 0;
+      padding: 0 13px 13px 30px;
+      color: var(--ink-soft);
+      font-size: 0.73rem;
+      line-height: 1.45;
+    }
+
+    .example-list li {
+      overflow-wrap: anywhere;
+    }
+
+    .import-alert {
+      padding: 14px 15px;
+      border: 1px solid rgba(169, 77, 69, 0.32);
+      border-radius: 14px;
+      color: #743f3a;
+      background: #fff8f6;
+      font-size: 0.8rem;
+      line-height: 1.5;
+    }
+
+    .import-success {
+      padding: 22px;
+      border: 1px solid rgba(31, 107, 85, 0.26);
+      border-radius: 18px;
+      text-align: center;
+      background: #f4faf6;
+    }
+
+    .success-mark {
+      display: grid;
+      width: 52px;
+      height: 52px;
+      margin: 0 auto 13px;
+      place-items: center;
+      border-radius: 50%;
+      color: #fff;
+      background: var(--green);
+      font-size: 1.35rem;
+      font-weight: 900;
+    }
+
+    .import-success h3 {
+      margin: 0 0 7px;
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+    }
+
+    .import-success p {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 0.8rem;
+      line-height: 1.5;
+    }
+
+    .import-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 9px;
+      padding: 17px 26px 22px;
+      border-top: 1px solid var(--line);
+      background: #fffefa;
+    }
+
+    .secondary-button,
+    .primary-button {
+      min-height: 42px;
+      padding: 9px 15px;
+      border-radius: 11px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 780;
+    }
+
+    .secondary-button {
+      border: 1px solid var(--line-strong);
+      background: #fff;
+    }
+
+    .primary-button {
+      border: 1px solid var(--green);
+      color: #fff;
+      background: var(--green);
+    }
+
+    .secondary-button:hover {
+      background: #f5f6f2;
+    }
+
+    .primary-button:hover {
+      background: var(--green-dark);
+    }
+
+    .secondary-button:disabled,
+    .primary-button:disabled {
+      cursor: wait;
+      opacity: 0.62;
+    }
+
     .skeleton {
       position: relative;
       overflow: hidden;
@@ -688,6 +1102,7 @@
     }
 
     button:focus-visible,
+    input:focus-visible,
     textarea:focus-visible,
     summary:focus-visible {
       outline: 3px solid rgba(217, 137, 67, 0.55);
@@ -712,6 +1127,22 @@
 
       .memory-panel {
         max-height: 680px;
+      }
+    }
+
+    @media (max-width: 1180px) and (min-width: 621px) {
+      .memory-panel .panel-actions .button-label-optional {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+      }
+
+      .memory-panel .panel-actions .icon-button {
+        width: 39px;
+        flex: 0 0 39px;
+        padding: 8px;
       }
     }
 
@@ -769,6 +1200,35 @@
         width: 39px;
         flex: 0 0 39px;
         padding: 8px;
+      }
+
+      .panel-actions {
+        gap: 6px;
+      }
+
+      .import-dialog-header,
+      .import-body {
+        padding-right: 18px;
+        padding-left: 18px;
+      }
+
+      .import-actions {
+        flex-wrap: wrap;
+        padding: 14px 18px 18px;
+      }
+
+      .preview-summary {
+        grid-template-columns: 1fr;
+      }
+
+      .import-actions .secondary-button,
+      .import-actions .primary-button {
+        flex: 1;
+      }
+
+      .import-actions .primary-button {
+        order: -1;
+        flex-basis: 100%;
       }
 
       .quick-prompts {
@@ -884,10 +1344,16 @@
             <p class="eyebrow">État du réseau</p>
             <h2 id="memory-title">Mémoire de l’agent</h2>
           </div>
-          <button class="icon-button" id="refresh-memory" type="button" aria-label="Rafraîchir la mémoire" title="Rafraîchir la mémoire">
-            <span class="refresh-symbol" aria-hidden="true">↻</span>
-            <span class="button-label-optional">Actualiser</span>
-          </button>
+          <div class="panel-actions">
+            <button class="icon-button import-button" id="open-import" type="button" aria-haspopup="dialog" aria-controls="import-dialog" title="Importer un fichier JSON">
+              <span aria-hidden="true">⇧</span>
+              <span class="button-label-optional">Importer JSON</span>
+            </button>
+            <button class="icon-button" id="refresh-memory" type="button" aria-label="Rafraîchir la mémoire" title="Rafraîchir la mémoire">
+              <span class="refresh-symbol" aria-hidden="true">↻</span>
+              <span class="button-label-optional">Actualiser</span>
+            </button>
+          </div>
         </header>
 
         <div class="memory-scroll">
@@ -909,6 +1375,92 @@
     </main>
   </div>
 
+  <dialog class="import-dialog" id="import-dialog" aria-labelledby="import-title" aria-describedby="import-description">
+    <div class="import-dialog-inner">
+      <header class="import-dialog-header">
+        <div>
+          <p class="eyebrow">Ajouter des connaissances</p>
+          <h2 id="import-title">Importer un fichier JSON</h2>
+          <p class="intro" id="import-description">La mémoire décode le fichier, classe ses éléments et vous montre un aperçu avant tout enregistrement.</p>
+        </div>
+        <button class="icon-button dialog-close" id="close-import" type="button" aria-label="Fermer l’importation" title="Fermer">×</button>
+      </header>
+
+      <div class="import-body" id="import-body" aria-live="polite">
+        <section class="import-stage" id="import-stage-select">
+          <button class="file-drop" id="file-drop" type="button" aria-label="Choisir ou déposer un fichier JSON" aria-describedby="file-rules">
+            <span>
+              <span class="file-drop-icon" aria-hidden="true">{ }</span>
+              <span class="file-drop-title">Choisissez ou déposez un fichier JSON</span>
+              <span class="file-drop-help">Un seul fichier .json · maximum 1 Mo · 200 souvenirs / 10 000 concepts</span>
+            </span>
+          </button>
+          <input class="visually-hidden" id="json-file" type="file" accept=".json,application/json" aria-describedby="file-rules">
+          <p class="privacy-note" id="file-rules">Le fichier est lu localement pour validation. Son contenu brut n’est pas conservé comme fichier.</p>
+        </section>
+
+        <section class="import-stage" id="import-stage-progress" hidden aria-labelledby="import-progress-label">
+          <div class="import-status-box">
+            <div class="import-file-row">
+              <span class="import-file-badge" aria-hidden="true">JSON</span>
+              <span style="min-width:0">
+                <span class="import-file-name" id="progress-file-name">Fichier JSON</span>
+                <span class="import-file-size" id="progress-file-size"></span>
+              </span>
+            </div>
+            <div class="progress-track" role="progressbar" aria-label="Analyse en cours"></div>
+            <p class="import-status-text" id="import-progress-label">Décodage et classement des souvenirs…</p>
+          </div>
+        </section>
+
+        <section class="import-stage" id="import-stage-preview" hidden aria-labelledby="preview-title">
+          <p class="section-label" id="preview-title">Aperçu avant importation</p>
+          <div class="preview-summary">
+            <div class="preview-count">
+              <strong id="preview-count">0</strong>
+              <small id="preview-count-label">souvenirs reconnus</small>
+            </div>
+            <div class="preview-file">
+              <strong id="preview-file-name">Fichier JSON</strong>
+              <small id="preview-file-summary">Prêt à être importé</small>
+            </div>
+          </div>
+
+          <p class="section-label">Catégories proposées</p>
+          <ul class="category-list" id="preview-categories"></ul>
+
+          <details class="preview-examples" id="preview-examples-wrap">
+            <summary>Voir quelques exemples reconnus</summary>
+            <ol class="example-list" id="preview-examples"></ol>
+          </details>
+          <p class="privacy-note">Les catégories sont automatiques dans cette version. Rien ne sera ajouté avant votre confirmation.</p>
+        </section>
+
+        <section class="import-stage" id="import-stage-error" hidden>
+          <div class="import-alert" role="alert">
+            <strong>Le fichier ne peut pas être importé.</strong>
+            <div id="import-error-message" style="margin-top:5px"></div>
+          </div>
+        </section>
+
+        <section class="import-stage" id="import-stage-success" hidden>
+          <div class="import-success" role="status">
+            <span class="success-mark" aria-hidden="true">✓</span>
+            <h3>Importation terminée</h3>
+            <p id="import-success-message">Les nouveaux souvenirs sont maintenant disponibles.</p>
+          </div>
+        </section>
+      </div>
+
+      <footer class="import-actions">
+        <button class="secondary-button" id="import-back" type="button" hidden>Choisir un autre fichier</button>
+        <button class="secondary-button" id="import-cancel" type="button">Annuler</button>
+        <button class="primary-button" id="import-retry" type="button" hidden>Réessayer</button>
+        <button class="primary-button" id="import-confirm" type="button" hidden>Importer les souvenirs</button>
+      </footer>
+    </div>
+  </dialog>
+
   <script>
     (() => {
       "use strict";
@@ -923,7 +1475,47 @@
         stats: document.getElementById("stats-grid"),
         memories: document.getElementById("memory-list"),
         status: document.getElementById("engine-status"),
-        statusText: document.getElementById("engine-status-text")
+        statusText: document.getElementById("engine-status-text"),
+        openImport: document.getElementById("open-import"),
+        importDialog: document.getElementById("import-dialog"),
+        importBody: document.getElementById("import-body"),
+        closeImport: document.getElementById("close-import"),
+        importCancel: document.getElementById("import-cancel"),
+        importBack: document.getElementById("import-back"),
+        importRetry: document.getElementById("import-retry"),
+        importConfirm: document.getElementById("import-confirm"),
+        fileInput: document.getElementById("json-file"),
+        fileDrop: document.getElementById("file-drop"),
+        importProgressLabel: document.getElementById("import-progress-label"),
+        progressFileName: document.getElementById("progress-file-name"),
+        progressFileSize: document.getElementById("progress-file-size"),
+        previewCount: document.getElementById("preview-count"),
+        previewCountLabel: document.getElementById("preview-count-label"),
+        previewFileName: document.getElementById("preview-file-name"),
+        previewFileSummary: document.getElementById("preview-file-summary"),
+        previewCategories: document.getElementById("preview-categories"),
+        previewExamplesWrap: document.getElementById("preview-examples-wrap"),
+        previewExamples: document.getElementById("preview-examples"),
+        importErrorMessage: document.getElementById("import-error-message"),
+        importSuccessMessage: document.getElementById("import-success-message")
+      };
+
+      const importStages = {
+        select: document.getElementById("import-stage-select"),
+        progress: document.getElementById("import-stage-progress"),
+        preview: document.getElementById("import-stage-preview"),
+        error: document.getElementById("import-stage-error"),
+        success: document.getElementById("import-stage-success")
+      };
+
+      const MAX_IMPORT_BYTES = 1024 * 1024;
+      const importState = {
+        file: null,
+        content: null,
+        importId: null,
+        preview: null,
+        busy: false,
+        lastAction: null
       };
 
       const initialGreeting = "Bonjour. Pour me confier un souvenir, commencez par « Souviens-toi que… ». Vous pourrez ensuite me demander de le rappeler ou de prédire la suite d’un motif.";
@@ -954,15 +1546,16 @@
       }
 
       async function apiFetch(url, options = {}) {
+        const { timeoutMs = 15000, ...fetchOptions } = options;
         const controller = new AbortController();
-        const timer = window.setTimeout(() => controller.abort(), 15000);
+        const timer = window.setTimeout(() => controller.abort(), timeoutMs);
         try {
           const response = await fetch(url, {
-            ...options,
+            ...fetchOptions,
             headers: {
               "Accept": "application/json",
-              ...(options.body ? { "Content-Type": "application/json" } : {}),
-              ...(options.headers || {})
+              ...(fetchOptions.body ? { "Content-Type": "application/json" } : {}),
+              ...(fetchOptions.headers || {})
             },
             signal: controller.signal
           });
@@ -977,6 +1570,354 @@
           return payload;
         } finally {
           window.clearTimeout(timer);
+        }
+      }
+
+      function setImportBusy(busy) {
+        importState.busy = busy;
+        els.importBody.setAttribute("aria-busy", String(busy));
+        els.closeImport.disabled = busy;
+        els.importCancel.disabled = busy;
+        els.importBack.disabled = busy;
+        els.importRetry.disabled = busy;
+        els.importConfirm.disabled = busy;
+      }
+
+      function showImportStage(stageName) {
+        Object.entries(importStages).forEach(([name, element]) => {
+          element.hidden = name !== stageName;
+        });
+
+        els.importBack.hidden = !["preview", "error"].includes(stageName);
+        els.importRetry.hidden = stageName !== "error";
+        els.importConfirm.hidden = stageName !== "preview";
+        els.importCancel.textContent = stageName === "success" ? "Fermer" : "Annuler";
+
+        window.setTimeout(() => {
+          if (!els.importDialog.open) return;
+          if (stageName === "select") els.fileDrop.focus();
+          if (stageName === "preview") els.importConfirm.focus();
+          if (stageName === "error") els.importRetry.focus();
+          if (stageName === "success") els.importCancel.focus();
+        }, 0);
+      }
+
+      function resetImport() {
+        importState.file = null;
+        importState.content = null;
+        importState.importId = null;
+        importState.preview = null;
+        importState.lastAction = null;
+        els.fileInput.value = "";
+        els.previewCategories.replaceChildren();
+        els.previewExamples.replaceChildren();
+        els.importErrorMessage.textContent = "";
+        els.importConfirm.disabled = false;
+        els.importConfirm.textContent = "Importer les souvenirs";
+        setImportBusy(false);
+        showImportStage("select");
+      }
+
+      function closeImportDialog() {
+        if (importState.busy) return;
+        if (els.importDialog.open) els.importDialog.close();
+      }
+
+      function formatFileSize(bytes) {
+        if (!Number.isFinite(bytes)) return "taille inconnue";
+        if (bytes < 1024) return `${bytes} octet${bytes > 1 ? "s" : ""}`;
+        if (bytes >= 1024 * 1024) {
+          return `${new Intl.NumberFormat("fr-CA", { maximumFractionDigits: 1 }).format(bytes / (1024 * 1024))} Mo`;
+        }
+        return `${new Intl.NumberFormat("fr-CA", { maximumFractionDigits: 1 }).format(bytes / 1024)} Ko`;
+      }
+
+      function numericCount(value) {
+        if (Array.isArray(value)) return value.length;
+        if (typeof value === "number" && Number.isFinite(value)) return Math.max(0, Math.trunc(value));
+        if (typeof value === "string" && /^\d+$/.test(value.trim())) return Number(value);
+        return null;
+      }
+
+      function normalizeCategories(payload) {
+        const raw = payload?.categories ?? payload?.summary?.categories ?? [];
+        let entries = [];
+
+        if (Array.isArray(raw)) {
+          entries = raw.map((category, index) => {
+            if (typeof category === "string" || typeof category === "number") {
+              return { name: String(category), count: null };
+            }
+            const name = firstDefined(category, ["name", "label", "category", "type", "kind"]);
+            const count = firstDefined(category, ["count", "total", "items", "memories", "size"]);
+            return {
+              name: String(name ?? `Catégorie ${index + 1}`),
+              count: numericCount(count)
+            };
+          });
+        } else if (raw && typeof raw === "object") {
+          entries = Object.entries(raw).map(([name, value]) => ({
+            name,
+            count: numericCount(value?.count ?? value?.total ?? value)
+          }));
+        }
+
+        return entries.filter(category => category.name.trim()).slice(0, 30);
+      }
+
+      function previewMemoryCount(payload, categories) {
+        const sources = [payload?.summary, payload];
+        const keys = [
+          "memory_count", "total_memories", "importable_items", "total_items",
+          "item_count", "items_count", "memories", "recognized", "count", "total"
+        ];
+        for (const source of sources) {
+          if (!source || typeof source !== "object") continue;
+          for (const key of keys) {
+            const count = numericCount(source[key]);
+            if (count !== null) return count;
+          }
+        }
+
+        const itemCount = numericCount(payload?.items);
+        if (itemCount !== null) return itemCount;
+        if (categories.length && categories.every(category => category.count !== null)) {
+          return categories.reduce((total, category) => total + category.count, 0);
+        }
+        return null;
+      }
+
+      function exampleText(item, index) {
+        if (typeof item === "string" || typeof item === "number" || typeof item === "boolean") {
+          return String(item);
+        }
+        const value = firstDefined(item, [
+          "text", "content", "memory", "message", "summary", "value", "label", "name", "event"
+        ]);
+        let text;
+        if (value !== undefined) {
+          text = typeof value === "object" ? JSON.stringify(value) : String(value);
+        } else {
+          try {
+            text = JSON.stringify(item);
+          } catch {
+            text = `Souvenir ${index + 1}`;
+          }
+        }
+        return text.length > 220 ? `${text.slice(0, 217)}…` : text;
+      }
+
+      function renderImportPreview(payload) {
+        const categories = normalizeCategories(payload);
+        const count = previewMemoryCount(payload, categories);
+        const file = importState.file;
+
+        els.previewCount.textContent = count === null ? "—" : formatNumber(count);
+        els.previewCountLabel.textContent = count === 1 ? "souvenir reconnu" : "souvenirs reconnus";
+        els.previewFileName.textContent = file?.name || "Fichier JSON";
+        els.previewFileSummary.textContent = [
+          file ? formatFileSize(file.size) : null,
+          categories.length ? `${categories.length} catégorie${categories.length > 1 ? "s" : ""}` : "Classement automatique"
+        ].filter(Boolean).join(" · ");
+
+        els.previewCategories.replaceChildren();
+        const displayedCategories = categories.length
+          ? categories
+          : [{ name: "Non classé", count }];
+        displayedCategories.forEach(category => {
+          const item = document.createElement("li");
+          item.className = "category-item";
+          const name = document.createElement("span");
+          name.className = "category-name";
+          name.textContent = humanizeKey(category.name);
+          const categoryCount = document.createElement("span");
+          categoryCount.className = "category-count";
+          categoryCount.textContent = category.count === null ? "aperçu" : formatNumber(category.count);
+          categoryCount.setAttribute("aria-label", category.count === null
+            ? "Nombre non précisé"
+            : `${category.count} souvenir${category.count > 1 ? "s" : ""}`);
+          item.append(name, categoryCount);
+          els.previewCategories.appendChild(item);
+        });
+
+        const examples = Array.isArray(payload?.items) ? payload.items.slice(0, 5) : [];
+        els.previewExamples.replaceChildren();
+        examples.forEach((example, index) => {
+          const item = document.createElement("li");
+          item.textContent = exampleText(example, index);
+          els.previewExamples.appendChild(item);
+        });
+        els.previewExamplesWrap.hidden = examples.length === 0;
+        els.previewExamplesWrap.open = false;
+
+        if (count === 0) {
+          els.importConfirm.disabled = true;
+          els.importConfirm.textContent = "Aucun souvenir à importer";
+        } else {
+          els.importConfirm.disabled = false;
+          els.importConfirm.textContent = count === null
+            ? "Confirmer l’importation"
+            : `Importer ${formatNumber(count)} souvenir${count > 1 ? "s" : ""}`;
+        }
+      }
+
+      function importErrorText(error) {
+        if (error?.name === "AbortError") {
+          return "L’opération a pris trop de temps. Vérifiez que le moteur fonctionne, puis réessayez.";
+        }
+        return String(error?.message || error || "Une erreur inconnue s’est produite.");
+      }
+
+      function showImportError(error, action) {
+        importState.lastAction = action;
+        els.importErrorMessage.textContent = importErrorText(error);
+        setImportBusy(false);
+        showImportStage("error");
+        els.importRetry.hidden = action === "select";
+        if (action === "select") window.setTimeout(() => els.importBack.focus(), 0);
+      }
+
+      async function requestImportPreview() {
+        if (!importState.file || importState.content === null) return;
+        importState.lastAction = "preview";
+        els.progressFileName.textContent = importState.file.name;
+        els.progressFileSize.textContent = formatFileSize(importState.file.size);
+        els.importProgressLabel.textContent = "Décodage et classement des souvenirs…";
+        showImportStage("progress");
+        setImportBusy(true);
+
+        try {
+          const payload = await apiFetch("/api/import", {
+            method: "POST",
+            timeoutMs: 30000,
+            body: JSON.stringify({
+              mode: "preview",
+              filename: importState.file.name,
+              content: importState.content
+            })
+          });
+          if (payload?.ok === false) throw new Error(payload.error || payload.message || "Le moteur a refusé ce fichier.");
+          const preview = payload?.preview && typeof payload.preview === "object"
+            ? { ...payload, ...payload.preview }
+            : payload;
+          importState.importId = preview?.import_id || preview?.importId || null;
+          importState.preview = preview;
+          setImportBusy(false);
+          renderImportPreview(preview);
+          showImportStage("preview");
+        } catch (error) {
+          showImportError(error, "preview");
+        }
+      }
+
+      async function handleJsonFile(file) {
+        if (!file || importState.busy) return;
+        importState.file = file;
+        els.progressFileName.textContent = file.name || "Fichier JSON";
+        els.progressFileSize.textContent = formatFileSize(file.size);
+        els.importProgressLabel.textContent = "Lecture et vérification du fichier…";
+        showImportStage("progress");
+        setImportBusy(true);
+
+        try {
+          if (!file.name.toLowerCase().endsWith(".json")) {
+            throw new Error("Choisissez un fichier dont le nom se termine par .json.");
+          }
+          if (file.size === 0) throw new Error("Ce fichier est vide.");
+          if (file.size > MAX_IMPORT_BYTES) {
+            throw new Error(`Ce fichier dépasse la limite de 1 Mo (${formatFileSize(file.size)}).`);
+          }
+
+          let text;
+          try {
+            const bytes = await file.arrayBuffer();
+            text = new TextDecoder("utf-8", { fatal: true })
+              .decode(bytes)
+              .replace(/^\uFEFF/, "");
+          } catch {
+            throw new Error("Le fichier doit être encodé correctement en UTF-8.");
+          }
+          let parsed;
+          try {
+            parsed = JSON.parse(text);
+          } catch {
+            throw new Error("Le contenu n’est pas un JSON valide. Vérifiez les virgules, guillemets et accolades.");
+          }
+          if (parsed === null || (typeof parsed !== "object" && !Array.isArray(parsed))) {
+            throw new Error("Le fichier doit contenir un objet ou une liste JSON.");
+          }
+
+          // Le texte original est envoyé au moteur. On évite ainsi que
+          // JSON.parse arrondisse silencieusement les très grands entiers.
+          importState.content = text;
+          setImportBusy(false);
+          await requestImportPreview();
+        } catch (error) {
+          showImportError(error, "select");
+        }
+      }
+
+      function resultCount(value) {
+        if (Array.isArray(value)) return value.length;
+        return numericCount(value);
+      }
+
+      function commitSummary(payload) {
+        const results = payload?.results;
+        let created = resultCount(payload?.created ?? results?.created ?? payload?.summary?.created);
+        let duplicates = resultCount(payload?.duplicates ?? results?.duplicates ?? payload?.summary?.duplicates);
+
+        if (Array.isArray(results)) {
+          created ??= results.filter(result => ["created", "imported", "added"].includes(result?.status)).length;
+          duplicates ??= results.filter(result => ["duplicate", "skipped", "existing"].includes(result?.status)).length;
+        }
+        created ??= previewMemoryCount(importState.preview, normalizeCategories(importState.preview));
+        duplicates ??= 0;
+
+        const createdText = created === null
+          ? "Les souvenirs reconnus ont été ajoutés."
+          : `${formatNumber(created)} souvenir${created > 1 ? "s" : ""} ajouté${created > 1 ? "s" : ""}.`;
+        const duplicateText = duplicates > 0
+          ? duplicates === 1
+            ? " 1 souvenir déjà présent n’a pas été dupliqué."
+            : ` ${formatNumber(duplicates)} souvenirs déjà présents n’ont pas été dupliqués.`
+          : "";
+        return createdText + duplicateText;
+      }
+
+      async function commitImport() {
+        if (!importState.file || importState.content === null || importState.busy) return;
+        importState.lastAction = "commit";
+        els.progressFileName.textContent = importState.file.name;
+        els.progressFileSize.textContent = formatFileSize(importState.file.size);
+        els.importProgressLabel.textContent = "Enregistrement des souvenirs dans la mémoire…";
+        showImportStage("progress");
+        setImportBusy(true);
+
+        try {
+          const payload = await apiFetch("/api/import", {
+            method: "POST",
+            timeoutMs: 120000,
+            body: JSON.stringify({
+              mode: "commit",
+              filename: importState.file.name,
+              content: importState.content,
+              ...(importState.importId ? { import_id: importState.importId } : {})
+            })
+          });
+          if (payload?.ok === false) throw new Error(payload.error || payload.message || "L’importation a été refusée.");
+          const committed = payload?.import && typeof payload.import === "object"
+            ? { ...payload, ...payload.import }
+            : payload;
+          const summary = commitSummary(committed);
+          els.importSuccessMessage.textContent = `${summary} Les statistiques et les souvenirs récents ont été actualisés.`;
+          await refreshMemory(true);
+          appendMessage("agent", `Import JSON terminé. ${summary}`);
+          setEngineStatus("online", "Moteur prêt");
+          setImportBusy(false);
+          showImportStage("success");
+        } catch (error) {
+          showImportError(error, "commit");
         }
       }
 
@@ -1312,6 +2253,61 @@
       });
 
       els.refresh.addEventListener("click", () => refreshMemory(false));
+
+      els.openImport.addEventListener("click", () => {
+        resetImport();
+        if (typeof els.importDialog.showModal === "function") {
+          els.importDialog.showModal();
+        } else {
+          els.importDialog.setAttribute("open", "");
+        }
+        window.setTimeout(() => els.fileDrop.focus(), 0);
+      });
+
+      els.closeImport.addEventListener("click", closeImportDialog);
+      els.importCancel.addEventListener("click", closeImportDialog);
+      els.importDialog.addEventListener("cancel", event => {
+        if (importState.busy) event.preventDefault();
+      });
+      els.importDialog.addEventListener("close", resetImport);
+
+      els.importBack.addEventListener("click", resetImport);
+      els.importConfirm.addEventListener("click", commitImport);
+      els.importRetry.addEventListener("click", () => {
+        if (importState.lastAction === "commit") {
+          commitImport();
+        } else if (importState.lastAction === "preview") {
+          requestImportPreview();
+        } else {
+          resetImport();
+        }
+      });
+
+      els.fileInput.addEventListener("change", () => {
+        const [file] = els.fileInput.files || [];
+        if (file) handleJsonFile(file);
+      });
+
+      els.fileDrop.addEventListener("click", () => els.fileInput.click());
+
+      ["dragenter", "dragover"].forEach(eventName => {
+        els.fileDrop.addEventListener(eventName, event => {
+          event.preventDefault();
+          if (!importState.busy) els.fileDrop.classList.add("is-dragging");
+        });
+      });
+      ["dragleave", "dragend"].forEach(eventName => {
+        els.fileDrop.addEventListener(eventName, () => {
+          els.fileDrop.classList.remove("is-dragging");
+        });
+      });
+      els.fileDrop.addEventListener("drop", event => {
+        event.preventDefault();
+        els.fileDrop.classList.remove("is-dragging");
+        if (importState.busy) return;
+        const [file] = event.dataTransfer?.files || [];
+        if (file) handleJsonFile(file);
+      });
 
       refreshMemory(false);
     })();

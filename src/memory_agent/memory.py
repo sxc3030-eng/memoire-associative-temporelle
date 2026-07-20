@@ -1645,6 +1645,40 @@ class MemoryEngine:
                     "database_size_bytes": size_bytes,
                 }
 
+    def preview_json_import(
+        self,
+        data: Any,
+        *,
+        filename: str | None = None,
+    ) -> dict[str, Any]:
+        """Validate and categorise JSON without changing the database."""
+
+        self._ensure_open()
+        from .json_import import prepare_json_import, preview_json_import
+
+        plan = prepare_json_import(data, filename=filename)
+        return preview_json_import(plan)
+
+    def import_json(
+        self,
+        data: Any,
+        *,
+        import_id: str,
+        filename: str | None = None,
+    ) -> dict[str, Any]:
+        """Import JSON leaves using content-derived idempotency keys.
+
+        ``import_id`` must be the value returned by :meth:`preview_json_import`
+        for the exact same data. This makes preview/confirmation mismatches
+        visible instead of silently importing a changed document.
+        """
+
+        self._ensure_open()
+        from .json_import import commit_json_import, prepare_json_import
+
+        plan = prepare_json_import(data, filename=filename)
+        return commit_json_import(self, plan, import_id=import_id)
+
     def close(self) -> None:
         """Close the SQLite connection. Safe to call more than once."""
 
