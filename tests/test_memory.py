@@ -139,6 +139,40 @@ class MemoryEngineTests(unittest.TestCase):
             reopened.close()
         self.engine = MemoryEngine(self.database_path)
 
+    def test_recall_is_insensitive_to_french_accents(self) -> None:
+        accented = self.engine.observe(
+            "Vénus est une planète tellurique",
+            episode_id="venus-accented",
+        )
+        plain = self.engine.observe(
+            "La planete Mars est froide",
+            episode_id="mars-plain",
+        )
+
+        venus_results = self.engine.recall("Venus planete")
+        mars_results = self.engine.recall("planète")
+
+        self.assertIn(accented["event_id"], {
+            event["event_id"]
+            for memory in venus_results
+            for event in memory["events"]
+        })
+        self.assertIn(plain["event_id"], {
+            event["event_id"]
+            for memory in mars_results
+            for event in memory["events"]
+        })
+
+    def test_recall_accepts_decomposed_french_accents(self) -> None:
+        remembered = self.engine.observe(
+            "Vénus possède une atmosphère dense",
+            episode_id="venus-unicode",
+        )
+
+        results = self.engine.recall("Ve\u0301nus atmosphe\u0300re")
+
+        self.assertEqual(results[0]["episode_id"], remembered["episode_id"])
+
 
 if __name__ == "__main__":
     unittest.main()

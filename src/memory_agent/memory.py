@@ -61,11 +61,22 @@ def _parse_datetime(value: str | None) -> datetime:
 
 
 def _normalise_token(value: Any) -> str:
-    text = unicodedata.normalize("NFKC", str(value)).strip().casefold()
+    decomposed = unicodedata.normalize("NFKD", str(value).strip().casefold())
+    folded: list[str] = []
+    latin_base = False
+    for character in decomposed:
+        if unicodedata.combining(character):
+            if latin_base:
+                continue
+        else:
+            latin_base = "LATIN" in unicodedata.name(character, "")
+        folded.append(character)
+    text = unicodedata.normalize("NFKC", "".join(folded))
     return text.replace("\u2019", "'")
 
 
 def _tokenise(text: str) -> list[str]:
+    text = unicodedata.normalize("NFC", text)
     return [
         token
         for token in (_normalise_token(item) for item in _TOKEN_RE.findall(text))

@@ -57,6 +57,8 @@ Le bouton **Importer JSON** de l'interface accepte un fichier `.json` UTF-8 cont
 
 Un fichier d'essai est fourni dans [`examples/souvenirs-exemple.json`](examples/souvenirs-exemple.json). Il contient un profil, des préférences, des projets et un événement. Les objets imbriqués et les tableaux sont parcourus sans exécuter leur contenu ; par exemple, la valeur `Atlas` garde le chemin `$.projets[0].nom` comme élément de provenance.
 
+Un second jeu prêt à interroger, [`examples/planetes-nasa.json`](examples/planetes-nasa.json), contient une fiche compacte pour chacune des huit planètes. Sa [fiche d'accompagnement](examples/PLANETES-NASA.md) indique les sources NASA et propose des questions de démonstration.
+
 Après l'import, on peut interroger naturellement la mémoire :
 
 ```text
