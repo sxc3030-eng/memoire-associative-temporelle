@@ -47,6 +47,16 @@ lancer-agent.bat
 
 Le navigateur ouvre ensuite automatiquement l'interface sur `http://127.0.0.1:8765`.
 
+Pour obtenir une petite fenêtre de conversation indépendante, exécuter une fois :
+
+```powershell
+powershell -ExecutionPolicy Bypass -File windows\Install-MATLMShortcut.ps1
+```
+
+Le raccourci **MAT-LM** créé sur le Bureau démarre silencieusement le serveur au
+besoin, lance le modèle local et ouvre l'interface dans une fenêtre légère. Il
+réutilise le serveur déjà actif au lieu d'en créer un deuxième.
+
 ### En ligne de commande
 
 ```bash
