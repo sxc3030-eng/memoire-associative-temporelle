@@ -2671,9 +2671,9 @@
       <section class="panel matlm-panel" id="matlm-panel" aria-labelledby="matlm-title">
         <header class="matlm-header">
           <div>
-            <p class="eyebrow">Petit modèle + grande mémoire</p>
+            <p class="eyebrow">Assistant local · sources vérifiables</p>
             <h1 id="matlm-title">Parler à MAT-LM</h1>
-            <p class="intro">Posez une question comme dans un assistant classique. MAT-LM consulte seulement les souvenirs utiles et montre les sources derrière sa réponse.</p>
+            <p class="intro">Posez une question. MAT-LM formule une réponse à partir du contexte disponible et indique clairement ses sources.</p>
           </div>
           <div class="matlm-header-tools">
             <span class="matlm-status-pill" id="matlm-status-pill" data-state="loading" role="status" aria-live="polite">Vérification…</span>
@@ -2685,7 +2685,7 @@
 
         <div class="matlm-status-bar">
           <p class="matlm-status-text" id="matlm-status-text">Lecture de la configuration MAT-LM…</p>
-          <p class="matlm-safety-inline"><strong>Lecture seule :</strong> effacer ce chat ou recevoir une réponse ne modifie jamais la mémoire.</p>
+          <p class="matlm-safety-inline"><strong>Contrôle des données :</strong> cette conversation n’entraîne pas automatiquement le modèle et ne modifie pas la base de connaissances.</p>
         </div>
 
         <div class="matlm-chat-shell">
@@ -2694,7 +2694,7 @@
               <div class="matlm-avatar" aria-hidden="true">M</div>
               <div class="matlm-message-body">
                 <p class="matlm-message-meta">MAT-LM · prêt à discuter</p>
-                <div class="matlm-bubble">Bonjour. Démarrez le modèle, puis posez-moi une question. Je citerai les souvenirs utilisés et je m’abstiendrai s’ils ne suffisent pas.</div>
+                <div class="matlm-bubble">Bonjour. Posez-moi une question. Je répondrai à partir des connaissances disponibles, avec des sources vérifiables.</div>
               </div>
             </article>
           </div>
@@ -2702,7 +2702,7 @@
           <div class="matlm-composer-wrap">
             <form class="matlm-form" id="matlm-form">
               <label for="matlm-question" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">Votre question pour MAT-LM</label>
-              <textarea id="matlm-question" rows="1" maxlength="4000" placeholder="Écrivez votre question…" required disabled></textarea>
+              <textarea id="matlm-question" rows="1" maxlength="4000" placeholder="Message à MAT-LM…" required disabled></textarea>
               <button class="primary-button" id="matlm-ask" type="submit" disabled>Envoyer</button>
             </form>
             <p class="matlm-composer-help">Entrée pour envoyer · Maj + Entrée pour une nouvelle ligne · les réponses ne sont pas apprises</p>
@@ -3182,7 +3182,7 @@
         }
       }
 
-      const matlmGreeting = "Bonjour. Démarrez le modèle, puis posez-moi une question. Je citerai les souvenirs utilisés et je m’abstiendrai s’ils ne suffisent pas.";
+      const matlmGreeting = "Bonjour. Posez-moi une question. Je répondrai à partir des connaissances disponibles, avec des sources vérifiables.";
 
       function matlmCitationLabel(citation) {
         const statusLabels = {
@@ -3197,7 +3197,7 @@
         const status = statusLabels[citation?.status] || citation?.status;
         if (status) parts.push(status);
         if (citation?.space === "reference") parts.push("référence scientifique");
-        if (citation?.space === "private") parts.push("mémoire personnelle");
+        if (citation?.space === "private") parts.push("source privée");
         if (citation?.temporal_context) parts.push(String(citation.temporal_context));
         return parts.join(" · ");
       }
@@ -3321,7 +3321,7 @@
         } else if (state === "busy") {
           pillState = "busy";
           pillText = "Réflexion";
-          detail = "MAT-LM consulte les souvenirs utiles et prépare une réponse avec ses sources.";
+          detail = "MAT-LM réfléchit et prépare une réponse avec des sources vérifiables.";
         } else if (state === "ready") {
           pillState = "ready";
           pillText = "Prêt";
@@ -3421,7 +3421,7 @@
         els.matlmAsk.disabled = true;
         appendMatlmMessage(
           "assistant",
-          "Je consulte les souvenirs utiles…",
+          "MAT-LM réfléchit…",
           { id: "matlm-thinking" }
         );
         const timeoutSeconds = Number(matlmState.status?.limits?.request_timeout_seconds) || 180;
@@ -3442,7 +3442,7 @@
               : "";
             const responseText = payload.reply
               || (abstention.abstained
-                ? `Je préfère m’abstenir : les souvenirs disponibles ne suffisent pas.${missing ? ` Information manquante : ${missing}.` : ""}`
+                ? `Je préfère m’abstenir : les connaissances disponibles ne suffisent pas.${missing ? ` Information manquante : ${missing}.` : ""}`
                 : "Je n’ai pas reçu de réponse exploitable.");
             appendMatlmMessage("assistant", responseText, {
               citations: payload?.citations,
