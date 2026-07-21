@@ -2,7 +2,7 @@
 
 > Un moteur expérimental de mémoire épisodique, sémantique et explicable pour agents.
 
-**Statut :** prototype local v0.1 fonctionnel — concept expérimental, sans revendication de résultat scientifique.
+**Statut :** prototype local v0.8 expérimental — mémoire asynchrone, Memory Hub multi-IA et premier adaptateur MAT-LM entraîné hors ligne, sans revendication de résultat scientifique général.
 
 Ce dépôt transforme un croquis initial en une proposition testable : conserver ce qui s'est produit dans l'ordre, consolider les motifs entre plusieurs expériences, puis retrouver ou prolonger une séquence à partir d'indices incomplets.
 
@@ -16,11 +16,26 @@ La mémoire possède deux représentations persistantes complémentaires et une 
 2. un graphe de **concepts** et de transitions consolidées entre plusieurs épisodes ;
 3. une **mémoire de travail** qui active et classe des chemins pour le rappel ou la prédiction.
 
+La v0.4 ajoute un composant séparé : une **calculatrice mathématique bornée** exécute les expressions avec un catalogue versionné. Calculer ne crée aucun souvenir; seul l'import explicite des descriptions du catalogue passe par le pipeline de mémoire.
+
+La v0.5 ajoute un **laboratoire historique calculable**. Il génère une chronique fictive dont la vérité est connue, expose un registre fini de 11 familles de dérivations, puis teste la mémoire avec des doublons, contradictions, homonymes et événements reçus hors ordre. Ses bases SQLite sont temporaires et la mémoire principale reste intacte.
+
+La v0.6 ajoute un **Memory Hub indépendant des modèles**. Plusieurs IA locales peuvent consulter les mêmes références à travers une capsule JSON bornée, tout en gardant des espaces privés physiquement séparés. Un banc compare chaque empreinte de modèle avec et sans capsule; il ne télécharge, ne supprime et ne remplace aucun modèle.
+
+La v0.7 prépare **MAT-LM-2B**, un adaptateur local spécialisé dans l'usage de
+la mémoire. Il apprend sur des mondes fictifs séparés des évaluations à citer
+les preuves, résoudre des contradictions, demander des calculs et s'abstenir.
+Les faits restent dans la mémoire externe au lieu d'être réappris dans les
+poids.
+
 ## Essayer le prototype
 
 Le prototype fonctionne entièrement sur l'ordinateur, sans compte payant, clé API ou dépendance externe. Les souvenirs sont conservés dans une base SQLite locale.
 
-![Interface du prototype de mémoire associative](docs/assets/interface-prototype.png)
+![Interface historique du prototype de mémoire associative v0.6](docs/assets/interface-prototype.png)
+
+*Capture historique v0.6. La v0.8 ajoute en dessous une conversation MAT-LM
+persistante avec état du modèle, preuves repliables et commande d'arrêt.*
 
 ### Sur Windows
 
@@ -32,12 +47,30 @@ lancer-agent.bat
 
 Le navigateur ouvre ensuite automatiquement l'interface sur `http://127.0.0.1:8765`.
 
+Pour obtenir une petite fenêtre de conversation indépendante, exécuter une fois :
+
+```powershell
+powershell -ExecutionPolicy Bypass -File windows\Install-MATLMShortcut.ps1
+```
+
+Le raccourci **MAT-LM** créé sur le Bureau démarre silencieusement le serveur au
+besoin, lance le modèle local et ouvre l'interface dans une fenêtre légère. Il
+réutilise le serveur déjà actif au lieu d'en créer un deuxième.
+
 ### En ligne de commande
 
 ```bash
 py start_agent.py          # Windows
 python start_agent.py      # macOS ou Linux
 ```
+
+Pour tester la séparation v0.3 entre réception, apprentissage et lecture :
+
+```bash
+python start_agent.py --async-injection
+```
+
+Dans ce mode, une observation est d'abord inscrite dans une file SQLite durable distincte. Un worker la consolide ensuite dans la mémoire avec une connexion d'écriture, pendant que le serveur répond aux questions avec une autre connexion de lecture. L'API accepte donc rapidement l'observation, sans prétendre qu'elle est déjà interrogeable.
 
 ### Conversation d'essai
 
@@ -48,12 +81,67 @@ De quoi te souviens-tu au sujet de Rio ?
 Qu'est-ce qui vient après Rio aime ?
 ```
 
+### Calculer sans mémoriser le résultat
+
+La calculatrice peut être utilisée dans son panneau dédié ou directement dans la conversation :
+
+```text
+Calcule 2 + 3 * 4
+Calcule gcd(84, 30)
+Calcule frac(1, 3) + frac(1, 6)
+```
+
+Le moteur analyse une expression bornée, appelle seulement les fonctions autorisées par son catalogue, puis retourne un résultat typé, son caractère exact ou approché, la durée et la validation de la politique d'exécution. Il n'utilise pas `eval`, n'accède ni au système de fichiers ni au réseau et refuse les syntaxes ou tailles hors limites. Cette validation n'est pas un second calcul indépendant.
+
+Trois flux restent volontairement distincts :
+
+1. **calculer** exécute une expression et ne mémorise jamais son résultat ;
+2. **décrire les règles** expose le catalogue versionné des fonctions disponibles ;
+3. **apprendre ces règles** exige le bouton explicite **Importer le catalogue dans la mémoire**, qui crée des tickets idempotents dans le pipeline.
+
+Les contrats locaux sont :
+
+```text
+GET  /api/math/catalog
+POST /api/calculate
+POST /api/math/catalog/import
+```
+
+Voir [Calculateur mathématique et mémoire à quatre niveaux](docs/CALCULATEUR_MATHEMATIQUE.md) pour le langage accepté, les garde-fous et le protocole expérimental.
+
+### Mettre la mémoire à l'épreuve avec une histoire calculable
+
+Le panneau **Laboratoire historique** construit localement une chronique fictive couvrant l'Antiquité jusqu'à 2026. Le caractère fictif est volontaire : la bonne réponse est entièrement connue et peut être vérifiée automatiquement, sans présenter une interprétation historique contestée comme une vérité unique.
+
+Le scénario fournit des dates civiles sans année zéro, des entités homonymes dans plusieurs contextes, des mesures, des coordonnées et des changements d'état. Il introduit ensuite des doublons idempotents, des contradictions conservées et un ordre de réception différent de l'ordre historique.
+
+Toutes les valeurs dont les entrées existent sont calculées par un registre fini de **11 familles** : durées civiles en années, mois et jours, milieux temporels, âges, intervalles, conversions d'unités, variations absolues et relatives, taux annuels et distances géographiques. Chaque dérivation conserve sa formule, ses entrées, son unité, sa version et les identifiants de ses faits sources. Elle est injectée comme `inferred` dans la base de test et ne devient jamais une preuve indépendante.
+
+Deux routes locales alimentent cette interface :
+
+```text
+GET  /api/stress/history/catalog
+POST /api/stress/history/run
+```
+
+Un seul test peut fonctionner à la fois. L'interface accepte de 5 à 100 faits sources; le script local permet des expériences plus grandes :
+
+```bash
+python scripts/benchmark_history.py --count 25 --seed 20260721
+```
+
+Chaque exécution crée une mémoire et une file SQLite dans un répertoire temporaire, mesure rappel, déduplication, provenance, débit, latence et stockage, ferme les bases puis supprime le répertoire. Elle n'ouvre et ne modifie jamais `data/memory.sqlite3` ou `data/injection.sqlite3`.
+
+Le score publié porte uniquement sur des questions sémantiques contrôlées : date, état le plus récent, contexte et contradiction. Les recherches par marqueur exact de fait ou de dérivation sont publiées séparément comme **diagnostic de plomberie** et ne gonflent pas ce score. Si la file ne se vide pas, si un ticket échoue ou si le nombre de travaux terminés diffère de l'attendu, le run est déclaré incomplet et aucune question n'est scorée.
+
+Le moteur principal ne possède pas encore un classement bitemporel natif : `valid_from` est conservé comme preuve, mais son ordre interne reste l'ordre d'ingestion. Cette limite est publiée dans chaque rapport. Voir [Mémoire historique calculable](docs/MEMOIRE_HISTORIQUE_CALCULABLE.md) et le [benchmark local v0.5](docs/BENCHMARK_HISTORY_V05.md).
+
 ### Importer des souvenirs JSON
 
 Le bouton **Importer JSON** de l'interface accepte un fichier `.json` UTF-8 contenant un objet ou une liste, jusqu'à 1 Mio et 200 souvenirs utiles. On peut le choisir ou le glisser dans la fenêtre guidée. L'import reste local et suit deux étapes :
 
 1. **Aperçu** — le fichier est validé et décodé, ses valeurs utiles sont transformées en souvenirs proposés et rangées dans des catégories informatives ; rien n'est encore écrit dans la mémoire.
-2. **Confirmation** — le bouton **Importer … souvenirs** enregistre les éléments valides, puis l'interface actualise les statistiques et les souvenirs. Chaque élément garde son nom de fichier, son chemin JSON et un identifiant d'import.
+2. **Confirmation** — le bouton **Importer … souvenirs** enregistre les éléments valides, puis l'interface actualise les statistiques et les souvenirs. Chaque élément garde son nom de fichier, son chemin JSON et un identifiant d'import. En mode `--async-injection`, la confirmation retourne `HTTP 202 Accepted` avec un ticket par souvenir : le fichier est accepté dans la file, puis devient visible après consolidation.
 
 Un fichier d'essai est fourni dans [`examples/souvenirs-exemple.json`](examples/souvenirs-exemple.json). Il contient un profil, des préférences, des projets et un événement. Les objets imbriqués et les tableaux sont parcourus sans exécuter leur contenu ; par exemple, la valeur `Atlas` garde le chemin `$.projets[0].nom` comme élément de provenance.
 
@@ -80,6 +168,183 @@ Oublie <identifiant>
 
 Le moteur actuel n'est pas un modèle de langage. Il apprend des motifs de mots d'ordre 1 à 3, retrouve des épisodes et montre les preuves utilisées. Une intégration avec un LLM pourra être ajoutée après validation de cette mémoire de base.
 
+### Tester la même mémoire avec plusieurs IA locales
+
+Le hub v0.6 superpose des politiques explicites à des bases `MemoryEngine` séparées :
+
+- `private` : seul le propriétaire lit et écrit ;
+- `shared` : lecteurs et auteurs sont autorisés séparément ;
+- `reference` : lecture partagée, import du corpus hors ligne, aucune écriture par les agents.
+
+Une réponse générée ne peut pas être enregistrée comme observation par le hub. Les sources acceptées pour une écriture fiable restent `observed`, `executed` et `user_confirmed`.
+
+Le corpus initial rassemble des affirmations atomiques sur Darwin et Wallace, les Curie, la pénicilline, la photographie 51 et le Web. Les questions, fragments attendus et fragments interdits restent séparés des faits importés. Pour construire les capsules sans envoyer la grille de correction aux modèles :
+
+Au démarrage, le serveur importe automatiquement les 31 affirmations dans
+`data/science-reference.sqlite3`, physiquement séparé de la mémoire personnelle.
+Le panneau **Sciences et biographies** affiche l'état de cette référence et les
+neuf questions d'épreuve. Les réponses attendues et les identifiants de
+correction ne traversent jamais cette interface.
+
+```text
+GET  /api/science/reference
+GET  /api/science/questions
+POST /api/science/reference/import
+```
+
+```bash
+python scripts/build_science_capsules.py \
+  --dataset examples/science-biographies-v1.json \
+  --output reports/science-capsules-v1.json
+```
+
+Puis, avec Ollama déjà actif sur la boucle locale :
+
+```bash
+python scripts/benchmark_local_models.py \
+  --backend ollama \
+  --model qwen2.5-coder:1.5b-base \
+  --dataset examples/science-biographies-v1.json \
+  --capsules reports/science-capsules-v1.json \
+  --max-models 1 --max-questions 9 \
+  --output reports/local-models-v06.json
+```
+
+Le banc charge une seule empreinte Ollama à la fois, mesure exactitude,
+abstention, hallucinations interdites et latence, puis libère le modèle. Voir
+[Memory Hub multi-IA](docs/MEMORY_HUB_MULTI_IA.md), [Curriculum scientifique et
+biographique](docs/CURRICULUM_SCIENCE_BIOGRAPHIES.md), le [passage de fumée
+Ollama v0.6](docs/BENCHMARK_MULTI_IA_V06.md) et le [défi complet de Qwen 1,5B
+Base](docs/BENCHMARK_QWEN_1_5B_SCIENCE_V06.md).
+
+### Former le modèle dédié MAT-LM
+
+Le premier candidat est Granite 3.3 2B Instruct avec un adaptateur LoRA local.
+Le générateur crée 2 250 exercices synthétiques équilibrés et un jeu de développement
+avec une autre graine. Chaque capsule et chaque réponse sont validées contre
+le contrat JSON réel avant l'entraînement; les identités et faits du benchmark
+scientifique sont interdits.
+
+```powershell
+python scripts/build_memory_native_curriculum.py `
+  --seed 20260721 --count 2250 `
+  --forbidden-corpus examples\science-biographies-v1.json `
+  --output training-data\matlm-train-v8.jsonl `
+  --manifest-output training-data\matlm-train-v8.manifest.json
+
+python scripts/build_memory_native_curriculum.py `
+  --seed 20260722 --count 270 `
+  --forbidden-corpus examples\science-biographies-v1.json `
+  --output training-data\matlm-dev-v8.jsonl `
+  --manifest-output training-data\matlm-dev-v8.manifest.json
+
+python scripts/train_matlm.py `
+  --train-jsonl training-data\matlm-train-v8.jsonl `
+  --eval-jsonl training-data\matlm-dev-v8.jsonl `
+  --output-dir training-runs\matlm-plan `
+  --cache-dir D:\MAT-LM\hf-cache `
+  --mode bf16-lora --sequence-length 1024 --max-steps 1 --dry-run
+```
+
+Le mode réel ne pousse aucun poids vers Internet et charge un seul modèle. La
+procédure, les garde-fous et l'interrogation de l'adaptateur sont décrits dans
+[MAT-LM-2B](docs/MAT_LM_2B.md).
+Le résultat A/B du pilote v0.8 et sa première comparaison au Qwen 14,8B local
+sont documentés dans [Résultats MAT-LM v0.8](docs/MAT_LM_PILOT_RESULTS.md).
+La comparaison scellée à venir, avec séparation mémoire/fine-tuning/taille,
+est définie dans le [protocole MAT-LM](docs/MAT_LM_BENCHMARK_PROTOCOL.md).
+
+### Parler à MAT-LM depuis l'interface locale
+
+L'interface s'ouvre désormais en mode conversation : MAT-LM occupe l'écran et
+les outils de recherche restent masqués. Le bouton **Ouvrir le laboratoire**
+révèle au besoin la mémoire générale, l'import JSON, les références
+scientifiques, le calculateur et les tests de charge. L'icône à quatre anneaux
+et l'en-tête orbital représentent les quatre niveaux d'apprentissage, la
+chronologie et les associations entre souvenirs.
+
+Le panneau **Parler à MAT-LM** reste désactivé par défaut. Pour l'activer avec
+un environnement, un modèle Granite et un adaptateur PEFT déjà présents sur
+`D:\MAT-LM`, lancez :
+
+```powershell
+py start_agent.py --async-injection --enable-matlm `
+  --matlm-python D:\MAT-LM\.venv\Scripts\python.exe `
+  --matlm-model D:\MAT-LM\models\granite-3.3-2b-instruct `
+  --matlm-adapter D:\MAT-LM\adapter `
+  --matlm-load-mode auto --matlm-max-new-tokens 384 `
+  --matlm-timeout-seconds 180
+```
+
+Le bouton **Démarrer MAT-LM** ouvre un unique processus local
+`scripts/ask_matlm.py --interactive`. Granite et l'adaptateur restent chargés
+entre les questions; **Arrêter** ferme le processus et libère explicitement le
+modèle. Le serveur n'ajoute jamais `--allow-model-download` et force
+Transformers en mode hors ligne.
+
+La limite interactive de 384 nouveaux tokens couvre le maximum de 302 tokens
+mesuré sur les 2 520 réponses du curriculum, avec une marge, tout en évitant
+de laisser le petit modèle poursuivre inutilement une génération déjà complète.
+
+Pour chaque question, le serveur rappelle au plus 12 preuves autorisées dans
+les espaces personnel et scientifique, construit une capsule JSON bornée, puis
+n'affiche qu'une réponse validée contre cette capsule. Une sortie hors contrat
+ou un délai dépassé arrête le worker afin que la question suivante ne puisse
+pas recevoir une ancienne réponse. Ni la question ni la réponse générée ne
+sont injectées automatiquement dans la mémoire.
+
+Dans un dossier scientifique rappelé, les faits atomiques restent groupés par
+résultat du Memory Hub, puis sont ordonnés par les termes de la question. Une
+question sur la découverte de Fleming place ainsi la preuve de 1928 avant sa
+date de naissance, sans changer les faits ni leurs identifiants.
+
+Les routes sont accessibles uniquement sur la même origine locale :
+
+```text
+GET  /api/matlm/status
+POST /api/matlm/start
+POST /api/matlm/ask
+POST /api/matlm/stop
+```
+
+### Observer le pipeline v0.3
+
+Une écriture asynchrone retourne un `job_id`. Son état passe normalement de `pending` à `processing`, puis à `completed`; après un nombre borné d'échecs, il passe à `failed`. Les routes locales suivantes permettent de suivre le traitement sans exposer le texte du souvenir :
+
+```text
+GET /api/pipeline
+GET /api/pipeline/jobs/<job_id>
+```
+
+`GET /api/pipeline` publie notamment la profondeur de file, son retard, l'état du worker, le nombre de soumissions reçues et dédoublonnées, ainsi que les tailles de la mémoire et de la file en incluant leurs journaux WAL/SHM. Une même clé d'idempotence avec le même contenu retrouve le ticket original; la réutiliser avec un autre fait est refusé.
+
+Le pipeline applique une livraison **au moins une fois** entre la file et le moteur. L'idempotence du moteur empêche un crash situé après l'apprentissage mais avant l'acquittement de renforcer deux fois le même souvenir.
+
+La file et la connexion écrivain de la mémoire valident leurs mutations SQLite avec `synchronous=FULL`. Les observations, oublis et nettoyages passent par cet écrivain durable; la connexion de lecture reste séparée et n'est jamais utilisée pour modifier la mémoire.
+
+### Mesurer le pipeline sans toucher à la mémoire principale
+
+```bash
+python scripts/benchmark_pipeline.py --count 100
+```
+
+Le benchmark crée ses propres bases temporaires, injecte un jeu déterministe comprenant des doublons, interroge la mémoire pendant les écritures, imprime un rapport JSON, puis supprime ces bases. Il mesure le nombre de soumissions uniques, complétées, échouées et dédoublonnées, le pourcentage de dédoublonnage, les latences d'injection moyenne/p50/p95, le débit de consolidation, les latences de rappel p50/p95/p99 pendant les écritures, les erreurs de lecture, la taille de la file, la taille de la mémoire et la séparation effective du lecteur et de l'écrivain.
+
+Le bouton **Tester avec 25 souvenirs** exerce le pipeline réel sans contaminer durablement la mémoire principale. Le serveur crée le run persistant et ses 25 tickets dans une seule transaction : ils existent tous, ou aucun n'existe. Dès que tous les tickets sont terminaux, le serveur retire automatiquement les événements synthétiques et les tickets, y compris si l'onglet a été fermé. Après un redémarrage, il reprend un nettoyage interrompu. Un bilan persistant conserve seulement l'état du run, ses compteurs, ses dates et une éventuelle erreur; les textes synthétiques ne deviennent jamais des preuves fiables.
+
+Important : la v0.3 réduit le temps d'attente de l'injecteur et maintient le lecteur disponible; elle ne rend pas encore la consolidation rapide à l'échelle du milliard. `MemoryEngine.observe` reconstruit encore les preuves de l'épisode et rafraîchit des agrégats globaux. Le coût augmente donc fortement avec la taille. La prochaine étape est une consolidation réellement incrémentale, des épisodes bornés et des compteurs de file sans scans globaux. Voir [`docs/BENCHMARK_V03.md`](docs/BENCHMARK_V03.md) pour les mesures et leur interprétation.
+
+### Mesurer la calculatrice
+
+```bash
+python scripts/benchmark_math.py --count 100000
+python scripts/benchmark_math.py --count 1000000 --warmup 5000
+```
+
+Ce benchmark génère des familles d'expressions reproductibles, compare leurs résultats à un chemin de calcul indépendant et rapporte exactitude, erreurs, débit et latences p50/p95/p99. Il vérifie également des expressions interdites et rapporte le nombre d'écritures mémoire, qui doit rester nul. Les résultats dépendent de la machine et doivent être publiés avec les conditions d'exécution; ce README n'en extrapole aucun chiffre.
+
+Le rapport local reproductible de la v0.4 est publié dans [`docs/BENCHMARK_MATH_V04.md`](docs/BENCHMARK_MATH_V04.md) : 1 000 000/1 000 000 résultats corrects dans le jeu généré, aucune erreur et aucune écriture mémoire.
+
 ### Exécuter les tests
 
 ```bash
@@ -92,10 +357,15 @@ python -m unittest discover -s tests -v      # macOS ou Linux
 - le serveur refuse toute adresse autre que la boucle locale ;
 - aucune authentification n'est fournie, car le prototype n'est pas accessible depuis le réseau ;
 - les souvenirs restent dans `data/memory.sqlite3` et ne sont envoyés à aucun service externe ;
+- en mode asynchrone, les observations en attente sont aussi conservées localement dans `data/injection.sqlite3` ;
 - l'aperçu JSON doit être vérifié avant l'import, surtout lorsqu'un fichier contient des données personnelles ;
 - le contenu JSON est traité comme une donnée, jamais comme du code, et le fichier source complet n'est pas archivé ;
 - la base n'est pas encore chiffrée : ne pas y placer de secrets ;
-- le moteur est lexical et expérimental, pas un assistant général ni un système prêt pour la production.
+- le moteur est lexical et expérimental, pas un assistant général ni un système prêt pour la production ;
+- une réponse produite par l'agent n'est jamais replacée automatiquement dans la file d'apprentissage ; seules une observation extérieure, une action exécutée ou une confirmation explicite peuvent créer un souvenir fiable.
+- un résultat de calcul n'est jamais une preuve d'apprentissage automatique ; seules les règles du catalogue importées volontairement peuvent rejoindre la mémoire.
+- les faits et calculs du laboratoire historique restent dans des bases temporaires isolées ; les dérivations portent la source `inferred` et ne renforcent pas les faits observés.
+- une mesure à unité inconnue est conservée comme donnée opaque avec `calculable: false`; elle n'est ni devinée ni rejetée, mais sa dérivation est ignorée. Une monnaie sans taux daté ou une entrée manquante produit elle aussi un calcul sauté.
 
 ## Le problème visé
 
@@ -126,7 +396,10 @@ Cette séparation préserve simultanément :
 
 ```mermaid
 flowchart LR
-    E["Événement observé"] --> N["Normalisation"]
+    E["Événement observé"] --> I["Injecteur"]
+    I --> JQ["File SQLite durable"]
+    JQ --> W["Worker de consolidation"]
+    W --> N["Normalisation et apprentissage"]
 
     subgraph EP["Mémoire épisodique"]
         J["Journal chronologique"] --> O["Occurrences horodatées"]
@@ -145,12 +418,15 @@ flowchart LR
     N --> C
     O -.->|"INSTANCE_OF"| C
     S -.->|"preuves"| G
-    Q["Indices et contexte courant"] --> A
+    Q["Indices et contexte courant"] --> L["Lecteur distinct"]
+    L --> A
     S --> A
     G --> A
     K --> R["Rappel ou prédiction"]
     K --> X["Explication et provenance"]
 ```
+
+La file d'injection et la mémoire utilisent deux fichiers SQLite distincts. Le worker possède sa connexion d'écriture au moteur; le lecteur en possède une autre. Le mode WAL permet au lecteur de rester disponible pendant l'écriture, tout en conservant la règle SQLite d'un seul écrivain à la fois dans la base mémoire. La file et l'écrivain utilisent `synchronous=FULL` pour leurs mutations durables.
 
 ### 1. Journal chronologique
 
@@ -226,22 +502,37 @@ flowchart TD
     A --> B["8. Classer les chemins"]
     B --> R["9. Rappeler ou prédire"]
     R --> X["10. Expliquer avec les preuves"]
-    X --> F{"Résultat confirmé ?"}
-    F -->|"oui"| U
+    X --> F{"Observation extérieure ou confirmation ?"}
+    F -->|"oui, comme nouvelle entrée"| I
     F -->|"non ou inconnu"| Z["Ne pas auto-renforcer"]
 ```
 
 Une sortie générée par l'agent ne doit jamais devenir automatiquement une observation. Le renforcement exige une source externe, une action réellement exécutée ou un retour explicite. Cette règle évite qu'une hallucination se transforme en « souvenir » dominant.
 
+## Quatre niveaux d'apprentissage
+
+La v0.4 distingue la réception d'une information de son droit à guider l'agent :
+
+| Niveau | Signification | Exemple |
+|---|---|---|
+| **Reçu** | contenu accepté ou répertorié, pas encore utilisable comme preuve | proposition placée dans une file |
+| **Observé** | fait provenant d'une source extérieure ou d'une action réellement exécutée | résultat confirmé par un outil indépendant |
+| **Consolidé** | motif soutenu par plusieurs observations traçables | transition renforcée avec ses épisodes justificatifs |
+| **Opérationnel** | règle testée, bornée et autorisée à être exécutée par un moteur déterministe | fonction du catalogue mathématique versionné |
+
+Une fonction opérationnelle n'autorise pas l'auto-apprentissage de toutes ses sorties. Le calculateur peut produire un grand nombre de résultats sans agrandir la mémoire; seules une règle importée explicitement ou une nouvelle observation extérieure suit le cycle d'apprentissage.
+
 ## Opérations prévues
 
 | Opération | Rôle | Résultat attendu |
 |---|---|---|
-| `observe` | Enregistrer un événement ou une séquence avec provenance | Occurrences et étendues de preuve créées de façon idempotente |
+| `observe` | Enregistrer un événement ou une séquence avec provenance | En mode asynchrone, ticket durable `HTTP 202`, puis occurrences et preuves créées de façon idempotente |
 | `recall` | Retrouver des épisodes à partir d'indices incomplets | Épisodes classés, chemins et preuves |
 | `predict` | Classer les prochains concepts selon l'historique et le contexte | Candidats, scores relatifs et support |
 | `explain` | Composer l'explication incluse dans un rappel ou une prédiction | Facteurs de score et occurrences sources |
 | `forget` | Supprimer réellement une source au MVP | Agrégats recalculés sans preuve fantôme |
+| `calculate` | Exécuter une expression dans le registre mathématique borné | Résultat exact ou approché, durée et validation de politique, sans écriture mémoire |
+| `catalog` | Décrire les fonctions mathématiques opérationnelles | Catalogue versionné inspectable et import facultatif |
 
 ## Apprentissage et classement
 
@@ -278,6 +569,23 @@ Les coefficients, le lissage et la calibration seront déterminés par l'évalua
 
 La contribution recherchée n'est pas un composant entièrement inédit pris isolément. Elle réside dans leur combinaison : **double représentation occurrence–concept, consolidation incrémentale et explication traçable jusqu'aux observations sources**.
 
+## Hypothèse de recherche : petit modèle et mémoire externe
+
+L'hypothèse à tester est qu'un **petit modèle couplé à une mémoire externe** peut laisser dans la mémoire une partie des faits précis, changeants ou personnels qui seraient autrement difficiles à graver dans l'entraînement. Si cette séparation fonctionne, elle pourrait réduire la quantité de données factuelles à répéter pendant l'entraînement et, pour une couverture factuelle donnée, permettre d'utiliser moins de paramètres.
+
+La calculatrice ajoute une deuxième externalisation possible : un petit modèle pourrait sélectionner une fonction et formuler une expression au lieu d'encoder approximativement chaque procédure et chaque résultat dans ses poids. Cette idée est plausible mais **non démontrée** par le prototype; elle devra être comparée au même modèle sans outil, avec les mêmes tâches, prompts et budgets.
+
+Ce n'est pas l'hypothèse qu'une base de souvenirs remplace un modèle. Les paramètres nécessaires à la langue, au raisonnement, à la représentation des concepts, à la planification et à l'usage correct des souvenirs restent dans le modèle. La mémoire ajoute aussi ses propres coûts : stockage, indexation, sélection du bon contexte, latence et risque de rappeler une mauvaise preuve.
+
+La comparaison minimale doit utiliser les mêmes questions, budgets et corpus de test pour :
+
+1. un grand modèle sans mémoire externe ;
+2. un petit modèle sans mémoire ;
+3. le même petit modèle avec recherche vectorielle comme baseline ;
+4. le même petit modèle avec cette mémoire associative temporelle.
+
+Les tests sépareront faits mémorisables, mises à jour après entraînement, ordre temporel, raisonnement sur plusieurs indices et qualité de langue. Ils mesureront exactitude, hallucinations, données d'entraînement, nombre de paramètres, tokens injectés, latence, mémoire vive et taille disque. Le projet ne conclura à une réduction utile que si le petit modèle avec mémoire rejoint ou dépasse une baseline plus grande sur les tâches factuelles ciblées sans masquer une baisse de raisonnement ou de langage.
+
 ## Applications possibles
 
 - mémoire persistante pour assistant ou agent IA ;
@@ -304,6 +612,14 @@ Le premier cas d'usage recommandé est la **mémoire locale d'un agent** : petit
 
 - [Architecture détaillée](docs/ARCHITECTURE.md)
 - [Plan de création du moteur](docs/PLAN_DE_CREATION.md)
+- [Calculateur mathématique et mémoire à quatre niveaux](docs/CALCULATEUR_MATHEMATIQUE.md)
+- [Benchmark du calculateur v0.4](docs/BENCHMARK_MATH_V04.md)
+- [Mesures du pipeline v0.3](docs/BENCHMARK_V03.md)
+- [Mémoire historique calculable](docs/MEMOIRE_HISTORIQUE_CALCULABLE.md)
+- [Benchmark du laboratoire historique v0.5](docs/BENCHMARK_HISTORY_V05.md)
+- [Contrat JSON du modèle natif de la mémoire](docs/MEMORY_NATIVE_LLM_CONTRACT.md)
+- [MAT-LM-2B : entraînement et évaluation](docs/MAT_LM_2B.md)
+- [YAGO et Wikidata comme mémoire de référence](docs/YAGO_WIKIDATA_MEMORY.md)
 - [Croquis à l'origine de l'idée](docs/assets/croquis-original.jpg)
 
 ## Première définition de la réussite
@@ -315,15 +631,25 @@ Le premier jalon est réussi si le moteur peut, de façon déterministe et repro
 3. retrouver un épisode à partir d'indices incomplets ;
 4. prédire correctement la branche la plus fréquente ou la plus contextuelle ;
 5. expliquer le résultat avec les observations exactes qui le soutiennent ;
-6. supprimer une observation et recalculer ses preuves et agrégats.
+6. supprimer une observation et recalculer ses preuves et agrégats ;
+7. accepter rapidement une observation dans une file durable et la retrouver après consolidation ;
+8. conserver la lecture disponible pendant que le worker écrit ;
+9. reprendre un travail interrompu sans doubler l'apprentissage.
+10. calculer une expression autorisée avec un résultat typé et validé par la politique du moteur sans écrire dans la mémoire ;
+11. importer explicitement et idempotemment le catalogue des règles, sans importer les résultats produits.
+12. calculer les 11 familles historiques annoncées uniquement lorsque leurs entrées sont disponibles et compatibles ;
+13. séparer le score sémantique du diagnostic de plomberie et ne rien scorer tant que le pipeline est incomplet.
 
 ## Feuille de route courte
 
-- **v0.1 — Fondations :** modèle concept/occurrence, stockage SQLite et scénarios de référence.
-- **v0.2 — Apprentissage :** transitions, contextes, idempotence et provenance.
-- **v0.3 — Rappel :** recherche bornée et chemins explicatifs.
-- **v0.4 — Prédiction :** historique d'ordre variable et comparaison aux baselines.
-- **v0.5 — Agent :** API locale et adaptateur pour un agent.
+- **v0.1 — Fondations :** modèle concept/occurrence, stockage SQLite, rappel et prédiction explicables.
+- **v0.2 — Données :** import JSON en deux temps, idempotence, provenance et exemples interrogeables.
+- **v0.3 — Pipeline séparé :** file durable, tickets `HTTP 202`, worker de consolidation, lecteur distinct et métriques de retard/dédoublonnage/taille.
+- **v0.4 — Calcul déterministe :** catalogue versionné, expressions bornées, résultats traçables, benchmark avec oracle indépendant sans écriture mémoire et import explicite des règles.
+- **v0.5 — Histoire calculable :** oracle indépendant, 11 familles de dérivations, corpus fictif isolé et benchmark séparant score sémantique et plomberie.
+- **v0.6 — Memory Hub :** espaces personnel, partagé et référence, corpus scientifique/biographique, puis comparaisons locales un modèle à la fois.
+- **v0.7 — Fondations MAT-LM :** contrat vérifiable, curriculum synthétique sans fuite, entraînement LoRA hors ligne, exécuteur local et import YAGO/Wikidata avec provenance.
+- **v0.8 — Pilote MAT-LM :** Granite 2B adapté sur neuf opérations de mémoire, recalcul déterministe, comparaison A/B reproductible et conversation persistante dans l'interface locale.
 
 Le plan complet, les critères d'acceptation et les tests sont décrits dans [docs/PLAN_DE_CREATION.md](docs/PLAN_DE_CREATION.md).
 
@@ -341,13 +667,13 @@ Ces questions sont laissées visibles afin que le prototype teste les hypothèse
 
 ## Publication et licence
 
-Ce dossier est prêt à devenir la base d'un dépôt GitHub. Avant une publication publique :
+Le projet est publié dans le dépôt GitHub [sxc3030-eng/memoire-associative-temporelle](https://github.com/sxc3030-eng/memoire-associative-temporelle). Aucune licence de réutilisation n'a encore été accordée : en l'absence de fichier de licence, les droits restent réservés au titulaire. Une licence ouverte pourra être choisie séparément sans retarder la publication expérimentale. Pour les prochaines versions publiques :
 
-1. choisir un nom de projet définitif ;
-2. choisir une licence pour la documentation et, plus tard, pour le code ;
-3. retirer du croquis toute information personnelle éventuelle ;
-4. ouvrir les premières issues à partir des étapes de la feuille de route ;
-5. éviter toute revendication de nouveauté scientifique avant comparaison et expérimentation.
+1. choisir explicitement si le code et la documentation doivent devenir open source, et sous quelle licence ;
+2. vérifier que les exemples et le croquis ne contiennent aucune information personnelle ;
+3. ouvrir ou actualiser les issues à partir de la feuille de route ;
+4. publier les conditions exactes des benchmarks avec leurs résultats ;
+5. éviter toute revendication de nouveauté scientifique ou d'échelle massive avant comparaison et expérimentation.
 
 ## Origine
 

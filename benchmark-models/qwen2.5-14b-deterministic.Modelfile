@@ -1,0 +1,7 @@
+FROM qwen2.5:14b-instruct-q4_0
+
+# Décodage comparable au MAT-LM local : gourmand, borné et reproductible.
+PARAMETER temperature 0
+PARAMETER seed 20260721
+PARAMETER num_ctx 4096
+PARAMETER num_predict 384

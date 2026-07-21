@@ -42,6 +42,22 @@ _MAX_RETURNED_EVENT_TEXT = 4_000
 _SCHEMA_VERSION = 1
 
 
+class MemoryIdempotencyConflictError(ValueError):
+    """Une cle d'idempotence existante designe un autre fait."""
+
+
+def _sqlite_file_sizes(db_path: str) -> dict[str, int | None]:
+    if db_path == ":memory:":
+        return {"main": None, "wal": None, "shm": None, "total": None}
+    path = Path(db_path).expanduser()
+    main = path.stat().st_size if path.exists() else 0
+    wal_path = Path(str(path) + "-wal")
+    shm_path = Path(str(path) + "-shm")
+    wal = wal_path.stat().st_size if wal_path.exists() else 0
+    shm = shm_path.stat().st_size if shm_path.exists() else 0
+    return {"main": main, "wal": wal, "shm": shm, "total": main + wal + shm}
+
+
 def _utcnow() -> str:
     """Return a sortable UTC timestamp with microsecond precision."""
 
@@ -140,13 +156,16 @@ class MemoryEngine:
     in a source mapping.
     """
 
-    def __init__(self, db_path: str | Path):
+    def __init__(self, db_path: str | Path, *, synchronous: str = "NORMAL"):
         if db_path is None:
             raise TypeError("db_path est obligatoire")
 
         raw_path = str(db_path)
         if not raw_path.strip():
             raise ValueError("db_path ne peut pas etre vide")
+        synchronous_mode = str(synchronous).strip().upper()
+        if synchronous_mode not in {"NORMAL", "FULL"}:
+            raise ValueError("synchronous doit valoir NORMAL ou FULL")
         self.db_path = raw_path
         if raw_path != ":memory:":
             Path(raw_path).expanduser().resolve().parent.mkdir(parents=True, exist_ok=True)
@@ -165,7 +184,7 @@ class MemoryEngine:
             self._connection.execute("PRAGMA busy_timeout = 30000")
             if raw_path != ":memory:":
                 self._connection.execute("PRAGMA journal_mode = WAL")
-                self._connection.execute("PRAGMA synchronous = NORMAL")
+                self._connection.execute(f"PRAGMA synchronous = {synchronous_mode}")
             self._create_schema()
         except BaseException:
             self._connection.close()
@@ -326,6 +345,10 @@ class MemoryEngine:
                 "INSERT INTO metadata(key, value) VALUES('schema_version', ?)",
                 (str(_SCHEMA_VERSION),),
             )
+        self._connection.execute(
+            "INSERT OR IGNORE INTO metadata(key, value) VALUES('database_id', ?)",
+            (str(uuid4()),),
+        )
 
     def _ensure_open(self) -> None:
         if self._closed:
@@ -520,10 +543,25 @@ class MemoryEngine:
             with self._transaction():
                 if supplied_key:
                     existing = self._connection.execute(
-                        "SELECT id FROM events WHERE idempotency_key = ?",
+                        """
+                        SELECT id, text, episode_id, source_type
+                        FROM events WHERE idempotency_key = ?
+                        """,
                         (supplied_key,),
                     ).fetchone()
                     if existing is not None:
+                        conflicts = (
+                            existing["text"] != original_text
+                            or (
+                                explicit_episode is not None
+                                and existing["episode_id"] != explicit_episode
+                            )
+                            or existing["source_type"] != source_type
+                        )
+                        if conflicts:
+                            raise MemoryIdempotencyConflictError(
+                                "Cette idempotency_key designe deja un autre fait"
+                            )
                         return self._event_result(existing["id"], duplicate=True)
 
                 episode = self._connection.execute(
@@ -1608,6 +1646,77 @@ class MemoryEngine:
                     "remaining_episode_ids": remaining_episode_ids,
                 }
 
+    def event_id_for_idempotency_key(self, idempotency_key: str) -> str | None:
+        """Return the event bound to a durable source key, without payload data."""
+
+        self._ensure_open()
+        if not isinstance(idempotency_key, str) or not idempotency_key.strip():
+            raise ValueError("idempotency_key doit etre une chaine non vide")
+        with self._lock:
+            self._ensure_open()
+            row = self._connection.execute(
+                "SELECT id FROM events WHERE idempotency_key = ?",
+                (idempotency_key.strip(),),
+            ).fetchone()
+            return row["id"] if row is not None else None
+
+    def forget_by_idempotency_key(self, idempotency_key: str) -> dict[str, Any]:
+        """Idempotently delete the event committed for one source ticket."""
+
+        self._ensure_open()
+        if not isinstance(idempotency_key, str) or not idempotency_key.strip():
+            raise ValueError("idempotency_key doit etre une chaine non vide")
+        clean_key = idempotency_key.strip()
+        with self._lock:
+            self._ensure_open()
+            row = self._connection.execute(
+                "SELECT id FROM events WHERE idempotency_key = ?", (clean_key,)
+            ).fetchone()
+            if row is None:
+                return {
+                    "forgotten": False,
+                    "event_id": None,
+                    "idempotency_key": clean_key,
+                    "reason": "event_not_found",
+                }
+            result = self.forget(row["id"])
+            result["idempotency_key"] = clean_key
+            return result
+
+    def event_exists(self, event_id: str) -> bool:
+        """Return whether an event still exists, without exposing its payload."""
+
+        self._ensure_open()
+        if not isinstance(event_id, str) or not event_id.strip():
+            return False
+        with self._lock:
+            row = self._connection.execute(
+                "SELECT 1 FROM events WHERE id = ?", (event_id.strip(),)
+            ).fetchone()
+            return row is not None
+
+    def database_id(self) -> str:
+        """Stable identity used to prevent pairing a queue with another memory."""
+
+        self._ensure_open()
+        with self._lock:
+            row = self._connection.execute(
+                "SELECT value FROM metadata WHERE key = 'database_id'"
+            ).fetchone()
+            if row is None:
+                raise RuntimeError("Identite de base memoire absente")
+            return str(row["value"])
+
+    def checkpoint(self, *, truncate: bool = False) -> None:
+        """Checkpoint WAL pages; useful after removing a synthetic test run."""
+
+        self._ensure_open()
+        if self.db_path == ":memory:":
+            return
+        mode = "TRUNCATE" if truncate else "PASSIVE"
+        with self._lock:
+            self._connection.execute(f"PRAGMA wal_checkpoint({mode})").fetchall()
+
     def stats(self) -> dict[str, Any]:
         """Return small, non-sensitive counters describing the local memory."""
 
@@ -1638,11 +1747,7 @@ class MemoryEngine:
                 source_counts = {
                     row["source_type"]: int(row["amount"]) for row in source_rows
                 }
-                if self.db_path == ":memory:":
-                    size_bytes = None
-                else:
-                    path = Path(self.db_path).expanduser()
-                    size_bytes = path.stat().st_size if path.exists() else 0
+                sizes = _sqlite_file_sizes(self.db_path)
                 return {
                     **counts,
                     "evidence": counts["evidence_spans"],
@@ -1653,7 +1758,10 @@ class MemoryEngine:
                     "schema_version": _SCHEMA_VERSION,
                     "max_pattern_order": _MAX_PATTERN_ORDER,
                     "database": self.db_path,
-                    "database_size_bytes": size_bytes,
+                    "database_size_bytes": sizes["total"],
+                    "database_main_size_bytes": sizes["main"],
+                    "database_wal_size_bytes": sizes["wal"],
+                    "database_shm_size_bytes": sizes["shm"],
                 }
 
     def preview_json_import(

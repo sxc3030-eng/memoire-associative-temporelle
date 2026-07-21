@@ -1,0 +1,12 @@
+# Pile locale MAT-LM. Aucune dépendance n'appelle un service d'inférence.
+#
+# Sur Windows avec Intel Arc, installer d'abord la roue PyTorch XPU officielle :
+#   python -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/xpu
+# Puis installer ce fichier :
+#   python -m pip install -r requirements-training.txt
+
+transformers>=4.51,<5
+peft>=0.15,<1
+accelerate>=1.2,<2
+bitsandbytes>=0.48,<1
+safetensors>=0.4.5,<1
