@@ -981,6 +981,156 @@
       margin-top: 14px;
     }
 
+    .history-panel {
+      grid-column: 1 / -1;
+      padding: clamp(22px, 3vw, 34px);
+    }
+
+    .history-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 22px;
+      margin-bottom: 20px;
+    }
+
+    .history-header .intro {
+      max-width: 780px;
+    }
+
+    .history-isolation-note {
+      max-width: 340px;
+      margin: 0;
+      padding: 10px 12px;
+      border: 1px solid rgba(31, 107, 85, 0.24);
+      border-radius: 12px;
+      color: var(--green-dark);
+      background: var(--green-pale);
+      font-size: 0.74rem;
+      font-weight: 700;
+      line-height: 1.45;
+    }
+
+    .history-layout {
+      display: grid;
+      grid-template-columns: minmax(280px, 0.72fr) minmax(0, 1.28fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .history-controls,
+    .history-results {
+      min-width: 0;
+      padding: clamp(17px, 2.4vw, 24px);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--surface-solid);
+    }
+
+    .history-controls h3,
+    .history-results h3 {
+      margin: 0 0 6px;
+      font-family: var(--font-display);
+      font-size: 1.05rem;
+    }
+
+    .history-fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .history-field label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--ink-soft);
+      font-size: 0.68rem;
+      font-weight: 780;
+    }
+
+    .history-field select,
+    .history-field input {
+      width: 100%;
+      min-height: 42px;
+      padding: 8px 10px;
+      border: 1px solid var(--line-strong);
+      border-radius: 11px;
+      color: var(--ink);
+      background: #fff;
+      font: inherit;
+      font-size: 0.78rem;
+    }
+
+    .history-run-button {
+      width: 100%;
+      margin-top: 12px;
+    }
+
+    .history-status {
+      min-height: 2.9em;
+      margin: 10px 0 0;
+      color: var(--ink-soft);
+      font-size: 0.7rem;
+      line-height: 1.45;
+    }
+
+    .history-status[data-state="error"] {
+      color: var(--red);
+    }
+
+    .history-metrics {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 9px;
+      margin-top: 15px;
+    }
+
+    .history-metric {
+      min-width: 0;
+      padding: 11px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fafaf6;
+    }
+
+    .history-metric strong,
+    .history-metric span {
+      display: block;
+    }
+
+    .history-metric strong {
+      margin-bottom: 4px;
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      overflow-wrap: anywhere;
+    }
+
+    .history-metric span {
+      color: var(--ink-soft);
+      font-size: 0.65rem;
+      font-weight: 720;
+      line-height: 1.35;
+    }
+
+    .history-details {
+      margin-top: 13px;
+      color: var(--ink-soft);
+      font-size: 0.7rem;
+    }
+
+    .history-details pre {
+      max-height: 280px;
+      padding: 12px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      color: var(--ink);
+      background: #f8f8f3;
+      font-size: 0.68rem;
+      white-space: pre-wrap;
+    }
+
     .stat-card {
       min-height: 91px;
       padding: 13px;
@@ -1608,6 +1758,23 @@
         grid-template-columns: 1fr;
       }
 
+      .history-header {
+        display: block;
+      }
+
+      .history-isolation-note {
+        max-width: none;
+        margin-top: 14px;
+      }
+
+      .history-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .history-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
       .math-expression-row .primary-button {
         width: 100%;
       }
@@ -1892,6 +2059,51 @@
           </aside>
         </div>
       </section>
+
+      <section class="panel history-panel" aria-labelledby="history-title">
+        <header class="history-header">
+          <div>
+            <p class="eyebrow">Épreuve temporelle locale</p>
+            <h2 id="history-title">Laboratoire historique</h2>
+            <p class="intro">Une chronique connue d’avance est injectée avec des dates, mesures, doublons, contradictions et événements reçus dans le désordre. La vérité de référence vérifie ensuite les réponses de la mémoire.</p>
+          </div>
+          <p class="history-isolation-note"><strong>Base de test isolée.</strong> Le laboratoire crée deux fichiers temporaires, les détruit après le test et ne modifie jamais vos souvenirs.</p>
+        </header>
+
+        <div class="history-layout">
+          <section class="history-controls" aria-labelledby="history-controls-title">
+            <h3 id="history-controls-title">Préparer l’épreuve</h3>
+            <p class="math-help" id="history-catalog-summary">Chargement des calculs historiques disponibles…</p>
+            <div class="history-fields">
+              <div class="history-field">
+                <label for="history-count">Faits sources</label>
+                <select id="history-count">
+                  <option value="10">10 · rapide</option>
+                  <option value="25" selected>25 · complet</option>
+                  <option value="50">50 · soutenu</option>
+                  <option value="100">100 · rude</option>
+                </select>
+              </div>
+              <div class="history-field">
+                <label for="history-seed">Scénario reproductible</label>
+                <input id="history-seed" type="number" min="0" max="2147483647" step="1" value="20260721" inputmode="numeric">
+              </div>
+            </div>
+            <button class="primary-button history-run-button" id="history-run" type="button">Lancer le test isolé</button>
+            <p class="history-status" id="history-status" role="status" aria-live="polite">Durées, âges, intervalles, conversions, variations, taux et distances seront calculés lorsque leurs entrées existent.</p>
+          </section>
+
+          <section class="history-results" id="history-results" aria-labelledby="history-results-title">
+            <h3 id="history-results-title">Résultats de la dernière épreuve</h3>
+            <p class="math-help" id="history-result-summary">Aucun test lancé dans cette session.</p>
+            <div class="history-metrics" id="history-metrics" hidden></div>
+            <details class="history-details" id="history-details" hidden>
+              <summary>Voir le rapport complet</summary>
+              <pre id="history-report"></pre>
+            </details>
+          </section>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -2043,7 +2255,16 @@
         mathCatalogSearch: document.getElementById("math-catalog-search"),
         mathCatalogFunctions: document.getElementById("math-catalog-functions"),
         mathCatalogImport: document.getElementById("math-catalog-import"),
-        mathCatalogStatus: document.getElementById("math-catalog-status")
+        mathCatalogStatus: document.getElementById("math-catalog-status"),
+        historyCatalogSummary: document.getElementById("history-catalog-summary"),
+        historyCount: document.getElementById("history-count"),
+        historySeed: document.getElementById("history-seed"),
+        historyRun: document.getElementById("history-run"),
+        historyStatus: document.getElementById("history-status"),
+        historyResultSummary: document.getElementById("history-result-summary"),
+        historyMetrics: document.getElementById("history-metrics"),
+        historyDetails: document.getElementById("history-details"),
+        historyReport: document.getElementById("history-report")
       };
 
       const importStages = {
@@ -2068,6 +2289,11 @@
         catalog: null,
         calculating: false,
         importing: false
+      };
+
+      const historyState = {
+        catalog: null,
+        running: false
       };
 
       const TEST_RUN_TRACKING_KEY = "memoire-associative-temporelle:test-runs:v1";
@@ -2496,6 +2722,182 @@
           mathState.importing = false;
           els.mathCatalogImport.disabled = !mathState.catalog || mathState.catalog.count === 0;
           els.mathCatalogImport.textContent = "Importer le catalogue dans la mémoire";
+        }
+      }
+
+      function historyReportPayload(payload) {
+        if (payload?.report && typeof payload.report === "object") return payload.report;
+        if (payload?.result && typeof payload.result === "object") return payload.result;
+        if (payload?.history_stress && typeof payload.history_stress === "object") return payload.history_stress;
+        return payload && typeof payload === "object" ? payload : null;
+      }
+
+      function historyValue(report, keys) {
+        const sources = [
+          report,
+          report?.config,
+          report?.configuration,
+          report?.scenario,
+          report?.pipeline,
+          report?.corpus,
+          report?.metrics,
+          report?.scores,
+          report?.retrieval,
+          report?.oracle,
+          report?.timing,
+          report?.performance,
+          report?.storage,
+          report?.memory
+        ];
+        for (const source of sources) {
+          if (!source || typeof source !== "object" || Array.isArray(source)) continue;
+          for (const key of keys) {
+            if (source[key] !== undefined && source[key] !== null) return source[key];
+          }
+        }
+        return null;
+      }
+
+      function historyPercent(value, fractionAllowed = true) {
+        const number = Number(value);
+        if (!Number.isFinite(number)) return "—";
+        const percent = fractionAllowed && number >= 0 && number <= 1 ? number * 100 : number;
+        return `${new Intl.NumberFormat("fr-CA", { maximumFractionDigits: 1 }).format(percent)} %`;
+      }
+
+      function historyRunOutcome(report) {
+        const status = String(report?.status ?? "").trim().toLowerCase();
+        const pipeline = report?.pipeline && typeof report.pipeline === "object"
+          ? report.pipeline
+          : {};
+        const rawFailed = Number(pipeline.failed ?? 0);
+        const failed = Number.isFinite(rawFailed) ? rawFailed : 0;
+        const drained = pipeline.drained;
+        const error = ["error", "failed", "failure"].includes(status) || failed > 0;
+        const complete = status === "complete" && drained !== false && failed === 0;
+        return { complete, drained, error, failed, status };
+      }
+
+      function renderHistoryReport(payload) {
+        const report = historyReportPayload(payload);
+        if (!report) throw new Error("Le laboratoire n’a retourné aucun rapport.");
+        const eventCount = historyValue(report, ["source_events", "base_events", "event_count", "events_generated", "unique_events"]);
+        const derivations = historyValue(report, ["calculations_count", "derived_events", "derived_count", "calculations", "derivations"]);
+        const semanticTop1 = historyValue(report, ["semantic_top1_percent"]);
+        const semanticTop5 = historyValue(report, ["semantic_top5_percent"]);
+        const top1 = semanticTop1 ?? historyValue(report, ["top1_accuracy", "top_1_accuracy", "top1_percent", "exact_top1", "recall_top1"]);
+        const top5 = semanticTop5 ?? historyValue(report, ["top5_recall", "top_k_recall", "top5_percent", "recall_at_5", "exact_top5"]);
+        const duplicates = historyValue(report, ["deduplicated", "deduplicated_requests", "duplicate_requests", "duplicates", "duplicate_count"]);
+        const duration = historyValue(report, ["duration_seconds", "total_seconds_including_queries", "total_seconds", "elapsed_seconds"]);
+        const contradictionCount = historyValue(report, ["contradictory_events", "contradictions", "contradiction_count"]);
+        const numericDuration = Number(duration);
+        const cards = [
+          [eventCount ?? "—", "Faits sources"],
+          [Array.isArray(derivations) ? derivations.length : derivations ?? "—", "Valeurs calculées"],
+          [historyPercent(top1, semanticTop1 === null), semanticTop1 === null ? "Rappel contrôlé top 1" : "Rappel sémantique top 1"],
+          [historyPercent(top5, semanticTop5 === null), semanticTop5 === null ? "Rappel contrôlé top 5" : "Rappel sémantique top 5"],
+          [duplicates ?? "—", "Doublons neutralisés"],
+          [Number.isFinite(numericDuration) ? `${formatNumber(numericDuration)} s` : "—", "Durée totale"]
+        ];
+        els.historyMetrics.replaceChildren();
+        cards.forEach(([value, label]) => {
+          const card = document.createElement("div");
+          card.className = "history-metric";
+          const strong = document.createElement("strong");
+          strong.textContent = typeof value === "number" ? formatNumber(value) : String(value);
+          const span = document.createElement("span");
+          span.textContent = label;
+          card.append(strong, span);
+          els.historyMetrics.appendChild(card);
+        });
+        els.historyMetrics.hidden = false;
+        const contradictionText = contradictionCount === null
+          ? ""
+          : ` · ${formatNumber(contradictionCount)} contradiction${Number(contradictionCount) === 1 ? "" : "s"}`;
+        const outcome = historyRunOutcome(report);
+        const temporaryStorageRemoved = report?.isolation?.temporary_storage_removed_after_run === true;
+        const isolationText = temporaryStorageRemoved
+          ? " La base temporaire a été supprimée; vos souvenirs sont inchangés."
+          : " Consultez le rapport d’isolation pour vérifier le nettoyage de la base temporaire.";
+        if (outcome.error) {
+          els.historyResultSummary.textContent = `Épreuve terminée avec erreur${contradictionText}.${isolationText}`;
+        } else if (!outcome.complete) {
+          els.historyResultSummary.textContent = `Épreuve incomplète${contradictionText}.${isolationText}`;
+        } else {
+          els.historyResultSummary.textContent = `Épreuve terminée${contradictionText}.${isolationText}`;
+        }
+        els.historyReport.textContent = JSON.stringify(report, null, 2);
+        els.historyDetails.hidden = false;
+        return outcome;
+      }
+
+      async function loadHistoryCatalog() {
+        try {
+          const payload = await apiFetch("/api/stress/history/catalog", { timeoutMs: 10000 });
+          const catalog = payload?.catalog && typeof payload.catalog === "object" ? payload.catalog : payload;
+          historyState.catalog = catalog;
+          const rawCalculations = catalog?.calculations ?? catalog?.derived_fields ?? catalog?.calculation_types ?? [];
+          const calculationCount = Array.isArray(rawCalculations)
+            ? rawCalculations.length
+            : numericCount(catalog?.calculation_count);
+          els.historyCatalogSummary.textContent = calculationCount
+            ? `${formatNumber(calculationCount)} familles de calcul déterministe · chronologie de l’Antiquité à 2026.`
+            : "Chronologie, unités, variations et distances prêtes pour un test local.";
+        } catch (error) {
+          historyState.catalog = null;
+          els.historyCatalogSummary.textContent = "Le laboratoire sera disponible après le redémarrage de cette version du moteur.";
+        }
+      }
+
+      async function runHistoryStress() {
+        if (historyState.running) return;
+        const eventCount = Number(els.historyCount.value);
+        const seed = Number(els.historySeed.value);
+        if (!Number.isInteger(eventCount) || eventCount < 5 || eventCount > 100) {
+          els.historyStatus.dataset.state = "error";
+          els.historyStatus.textContent = "Choisissez entre 5 et 100 faits sources.";
+          return;
+        }
+        if (!Number.isSafeInteger(seed) || seed < 0 || seed > 2147483647) {
+          els.historyStatus.dataset.state = "error";
+          els.historyStatus.textContent = "Le numéro de scénario doit être un entier entre 0 et 2 147 483 647.";
+          return;
+        }
+        historyState.running = true;
+        els.historyRun.disabled = true;
+        els.historyCount.disabled = true;
+        els.historySeed.disabled = true;
+        els.historyRun.textContent = "Épreuve en cours…";
+        els.historyStatus.dataset.state = "running";
+        els.historyStatus.textContent = "Création de la mémoire isolée, calcul des valeurs, injection puis interrogation…";
+        try {
+          const payload = await apiFetch("/api/stress/history/run", {
+            method: "POST",
+            timeoutMs: 300000,
+            body: JSON.stringify({ event_count: eventCount, seed })
+          });
+          const outcome = renderHistoryReport(payload);
+          if (outcome.error) {
+            els.historyStatus.dataset.state = "error";
+            els.historyStatus.textContent = "Test terminé avec erreur. Le rapport partiel reste visible et ne constitue pas un score final.";
+          } else if (!outcome.complete) {
+            els.historyStatus.dataset.state = "error";
+            els.historyStatus.textContent = "Test incomplet. Les résultats disponibles ont été comparés à la vérité de référence, mais ils ne constituent pas un score final.";
+          } else {
+            els.historyStatus.dataset.state = "success";
+            els.historyStatus.textContent = "Test terminé. Les résultats mesurés ont été comparés à la vérité de référence; aucune réponse n’a été corrigée ni apprise automatiquement.";
+          }
+        } catch (error) {
+          els.historyStatus.dataset.state = "error";
+          els.historyStatus.textContent = error?.name === "AbortError"
+            ? "Le test dépasse cinq minutes. Essayez un nombre de faits plus petit."
+            : `Test impossible : ${error?.message || "le laboratoire n’a pas répondu."}`;
+        } finally {
+          historyState.running = false;
+          els.historyRun.disabled = false;
+          els.historyCount.disabled = false;
+          els.historySeed.disabled = false;
+          els.historyRun.textContent = "Lancer le test isolé";
         }
       }
 
@@ -3660,6 +4062,7 @@
       els.mathForm.addEventListener("submit", calculateMath);
       els.mathCatalogSearch.addEventListener("input", renderMathCatalog);
       els.mathCatalogImport.addEventListener("click", importMathCatalog);
+      els.historyRun.addEventListener("click", runHistoryStress);
       document.querySelectorAll("[data-math-expression]").forEach(button => {
         button.addEventListener("click", () => {
           els.mathExpression.value = button.dataset.mathExpression || "";
@@ -3734,6 +4137,7 @@
       refreshMemory(false);
       void refreshPipeline(false);
       void loadMathCatalog();
+      void loadHistoryCatalog();
     })();
   </script>
 </body>

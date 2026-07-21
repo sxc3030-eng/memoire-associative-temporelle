@@ -1,0 +1,22 @@
+{
+  "schema_version": "history-stress-profile-v1",
+  "name": "Antiquite a aujourd'hui",
+  "description": "Profil local reproductible pour tester la memoire temporelle sans modifier la memoire principale.",
+  "event_count": 25,
+  "seed": 20260721,
+  "episode_size": 8,
+  "year_range": {
+    "start": -2000,
+    "end": 2026,
+    "civil_year_zero_allowed": false
+  },
+  "duplicate_rate": 0.15,
+  "contradiction_rate": 0.1,
+  "out_of_order_rate": 0.25,
+  "calculations": "all_supported",
+  "isolation": {
+    "temporary_memory": true,
+    "external_api": false,
+    "main_memory_writes": 0
+  }
+}

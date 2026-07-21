@@ -1,6 +1,6 @@
 # Plan de création du moteur de mémoire pour agent
 
-Ce plan vise un premier moteur petit, local, persistant et explicable. La v0.3 a séparé l'injection, la consolidation et la lecture; la v0.4 ajoute une calculatrice déterministe et un catalogue de règles importable explicitement. Le but n'est pas de construire immédiatement une « intelligence complète », mais de tester les hypothèses centrales avec des résultats reproductibles.
+Ce plan vise un premier moteur petit, local, persistant et explicable. La v0.3 a séparé l'injection, la consolidation et la lecture; la v0.4 ajoute une calculatrice déterministe et un catalogue de règles importable explicitement; la v0.5 ajoute une vérité historique indépendante et un laboratoire de stress calculable. Le but n'est pas de construire immédiatement une « intelligence complète », mais de tester les hypothèses centrales avec des résultats reproductibles.
 
 ## 1. Résultat attendu du MVP
 
@@ -21,6 +21,10 @@ Ce plan vise un premier moteur petit, local, persistant et explicable. La v0.3 a
 13. calculer une expression autorisée avec un résultat typé, une durée et une validation de politique ;
 14. garantir qu'un calcul ordinaire n'écrit rien dans la mémoire ;
 15. inspecter puis importer explicitement et idempotemment les règles du catalogue mathématique.
+16. générer une chronique historique reproductible avec dates, contextes, doublons et contradictions ;
+17. calculer les 11 familles historiques autorisées lorsque leurs entrées existent, avec unités et lignage ;
+18. évaluer automatiquement la mémoire dans des bases temporaires sans modifier la mémoire principale ;
+19. séparer le score sémantique des diagnostics de plomberie et ne produire aucun score si le pipeline est incomplet.
 
 ## 2. Périmètre fonctionnel
 
@@ -44,6 +48,11 @@ Ce plan vise un premier moteur petit, local, persistant et explicable. La v0.3 a
 - résultats exacts ou approchés, métriques d'exécution et validation de politique ;
 - import explicite des descriptions du catalogue, séparé de l'exécution des calculs ;
 - quatre niveaux distingués : reçu, observé, consolidé et opérationnel.
+- oracle historique indépendant du tokenizer et du classement de la mémoire ;
+- 11 familles historiques déterministes : trois durées civiles, milieu temporel, âge, intervalle, conversion, deux variations, taux annuel et distance ;
+- conservation opaque des mesures à unité inconnue, avec dérivation sautée plutôt que valeur devinée ;
+- scénario de stress isolé avec score sémantique, diagnostic de plomberie, déduplication, latence, débit et stockage ;
+- verrou de score exigeant une file vidée, aucun échec et le compte exact de travaux terminés.
 
 ### Reporté après validation
 
@@ -525,6 +534,31 @@ sequenceDiagram
 
 ---
 
+### Phase 6c — Évaluer la mémoire historique calculable
+
+**Travail**
+
+- construire une vérité de référence indépendante du tokenizer, du classement et des tables de la mémoire ;
+- exposer un catalogue fini de 11 familles de calcul historique ;
+- conserver les unités inconnues comme données opaques et marquer leurs calculs comme sautés ;
+- injecter les faits sources comme `observed` et les dérivations comme `inferred` dans des bases temporaires ;
+- générer des questions naturelles contrôlées sur les dates, états récents, contextes et contradictions ;
+- réserver les marqueurs exacts au diagnostic du câblage index → épisode ;
+- interdire tout score tant que le pipeline n'est pas intégralement terminé sans échec.
+
+**Critères d'acceptation**
+
+- le rapport distingue explicitement `semantic` et `plumbing_diagnostics` ;
+- les marqueurs synthétiques ne participent jamais au score sémantique ;
+- une contradiction exige ses deux épisodes dans le top 5 et n'est pas comptée au top 1 ;
+- un pipeline non vidé, un ticket échoué ou un compte de travaux incorrect produit `status: incomplete`, `retrieval.status: not_scored` et des pourcentages `null` ;
+- les faits et tickets de test restent dans le répertoire temporaire, qui est supprimé après fermeture des bases ;
+- les résultats de machine sont publiés avec leur configuration et sans extrapolation à grande échelle.
+
+**Livrable :** laboratoire historique v0.5, documentation du format et benchmark reproductible honnête.
+
+---
+
 ### Phase 7 — Mesurer et décider de la suite
 
 **Travail**
@@ -639,6 +673,7 @@ sequenceDiagram
 | Isolation | nombre de fuites de portée, attendu : zéro |
 | Modèle + mémoire | exactitude, hallucination, qualité de langue/raisonnement, paramètres, données d'entraînement, tokens injectés et coût total |
 | Calcul déterministe | exactitude par famille avec oracle de benchmark, refus attendus, débit, latences p50/p95/p99, sélection de fonction, validation de politique et écritures mémoire attendues : zéro |
+| Histoire calculable | top 1/top 5 sémantiques, plomberie séparée, erreurs par type de question, état du pipeline, déduplication, provenance, latences et stockage temporaire |
 
 Si des probabilités calibrées sont ajoutées, mesurer aussi Brier score ou log loss. Avant cela, parler uniquement de scores relatifs.
 
@@ -675,6 +710,9 @@ Le prototype doit être meilleur sur au moins un besoin mesuré, et pas seulemen
 | Réduction de paramètres affirmée trop tôt | expériences contrôlées et séparation des capacités factuelles, linguistiques et de raisonnement |
 | Calculatrice utilisée comme exécuteur arbitraire | liste blanche d'AST/fonctions, quotas stricts et aucun `eval` |
 | Résultats mathématiques auto-appris | chemin `calculate` sans écriture et import distinct des seules règles versionnées |
+| Score historique gonflé par des marqueurs exacts | score sémantique séparé du diagnostic de plomberie |
+| Score produit sur une consolidation partielle | verrou exigeant pipeline vidé, zéro échec et compte terminé exact |
+| Unité inconnue inventée ou perdue | valeur source conservée opaque, `calculable: false` et dérivation sautée |
 
 ## 12. Liste initiale d'issues GitHub
 
@@ -706,6 +744,9 @@ Le prototype doit être meilleur sur au moins un besoin mesuré, et pas seulemen
 - [x] Exposer le catalogue, le calcul et l'import explicite de ses règles par l'API locale.
 - [x] Garantir par test que les calculs ne créent aucun souvenir ni ticket.
 - [x] Ajouter un benchmark mathématique reproductible sans résultat de machine codé dans la documentation.
+- [x] Ajouter l'oracle historique, les 11 familles de calcul et le scénario fictif isolé.
+- [x] Séparer le score sémantique des diagnostics de plomberie.
+- [x] Refuser de scorer un run dont le pipeline est incomplet.
 - [ ] Permettre plus tard la correction manuelle des catégories avant confirmation.
 - [ ] Ajouter un manifeste et l'oubli groupé par `import_id`.
 - [ ] Construire le benchmark de 100 000 occurrences.

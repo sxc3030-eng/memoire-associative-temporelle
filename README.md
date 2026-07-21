@@ -2,7 +2,7 @@
 
 > Un moteur expérimental de mémoire épisodique, sémantique et explicable pour agents.
 
-**Statut :** prototype local v0.4 fonctionnel — mémoire asynchrone et calculatrice déterministe expérimentales, sans revendication de résultat scientifique.
+**Statut :** prototype local v0.5 fonctionnel — mémoire asynchrone, calculatrice déterministe et laboratoire historique isolé expérimentaux, sans revendication de résultat scientifique.
 
 Ce dépôt transforme un croquis initial en une proposition testable : conserver ce qui s'est produit dans l'ordre, consolider les motifs entre plusieurs expériences, puis retrouver ou prolonger une séquence à partir d'indices incomplets.
 
@@ -17,6 +17,8 @@ La mémoire possède deux représentations persistantes complémentaires et une 
 3. une **mémoire de travail** qui active et classe des chemins pour le rappel ou la prédiction.
 
 La v0.4 ajoute un composant séparé : une **calculatrice mathématique bornée** exécute les expressions avec un catalogue versionné. Calculer ne crée aucun souvenir; seul l'import explicite des descriptions du catalogue passe par le pipeline de mémoire.
+
+La v0.5 ajoute un **laboratoire historique calculable**. Il génère une chronique fictive dont la vérité est connue, expose un registre fini de 11 familles de dérivations, puis teste la mémoire avec des doublons, contradictions, homonymes et événements reçus hors ordre. Ses bases SQLite sont temporaires et la mémoire principale reste intacte.
 
 ## Essayer le prototype
 
@@ -85,6 +87,33 @@ POST /api/math/catalog/import
 ```
 
 Voir [Calculateur mathématique et mémoire à quatre niveaux](docs/CALCULATEUR_MATHEMATIQUE.md) pour le langage accepté, les garde-fous et le protocole expérimental.
+
+### Mettre la mémoire à l'épreuve avec une histoire calculable
+
+Le panneau **Laboratoire historique** construit localement une chronique fictive couvrant l'Antiquité jusqu'à 2026. Le caractère fictif est volontaire : la bonne réponse est entièrement connue et peut être vérifiée automatiquement, sans présenter une interprétation historique contestée comme une vérité unique.
+
+Le scénario fournit des dates civiles sans année zéro, des entités homonymes dans plusieurs contextes, des mesures, des coordonnées et des changements d'état. Il introduit ensuite des doublons idempotents, des contradictions conservées et un ordre de réception différent de l'ordre historique.
+
+Toutes les valeurs dont les entrées existent sont calculées par un registre fini de **11 familles** : durées civiles en années, mois et jours, milieux temporels, âges, intervalles, conversions d'unités, variations absolues et relatives, taux annuels et distances géographiques. Chaque dérivation conserve sa formule, ses entrées, son unité, sa version et les identifiants de ses faits sources. Elle est injectée comme `inferred` dans la base de test et ne devient jamais une preuve indépendante.
+
+Deux routes locales alimentent cette interface :
+
+```text
+GET  /api/stress/history/catalog
+POST /api/stress/history/run
+```
+
+Un seul test peut fonctionner à la fois. L'interface accepte de 5 à 100 faits sources; le script local permet des expériences plus grandes :
+
+```bash
+python scripts/benchmark_history.py --count 25 --seed 20260721
+```
+
+Chaque exécution crée une mémoire et une file SQLite dans un répertoire temporaire, mesure rappel, déduplication, provenance, débit, latence et stockage, ferme les bases puis supprime le répertoire. Elle n'ouvre et ne modifie jamais `data/memory.sqlite3` ou `data/injection.sqlite3`.
+
+Le score publié porte uniquement sur des questions sémantiques contrôlées : date, état le plus récent, contexte et contradiction. Les recherches par marqueur exact de fait ou de dérivation sont publiées séparément comme **diagnostic de plomberie** et ne gonflent pas ce score. Si la file ne se vide pas, si un ticket échoue ou si le nombre de travaux terminés diffère de l'attendu, le run est déclaré incomplet et aucune question n'est scorée.
+
+Le moteur principal ne possède pas encore un classement bitemporel natif : `valid_from` est conservé comme preuve, mais son ordre interne reste l'ordre d'ingestion. Cette limite est publiée dans chaque rapport. Voir [Mémoire historique calculable](docs/MEMOIRE_HISTORIQUE_CALCULABLE.md) et le [benchmark local v0.5](docs/BENCHMARK_HISTORY_V05.md).
 
 ### Importer des souvenirs JSON
 
@@ -175,6 +204,8 @@ python -m unittest discover -s tests -v      # macOS ou Linux
 - le moteur est lexical et expérimental, pas un assistant général ni un système prêt pour la production ;
 - une réponse produite par l'agent n'est jamais replacée automatiquement dans la file d'apprentissage ; seules une observation extérieure, une action exécutée ou une confirmation explicite peuvent créer un souvenir fiable.
 - un résultat de calcul n'est jamais une preuve d'apprentissage automatique ; seules les règles du catalogue importées volontairement peuvent rejoindre la mémoire.
+- les faits et calculs du laboratoire historique restent dans des bases temporaires isolées ; les dérivations portent la source `inferred` et ne renforcent pas les faits observés.
+- une mesure à unité inconnue est conservée comme donnée opaque avec `calculable: false`; elle n'est ni devinée ni rejetée, mais sa dérivation est ignorée. Une monnaie sans taux daté ou une entrée manquante produit elle aussi un calcul sauté.
 
 ## Le problème visé
 
@@ -424,6 +455,8 @@ Le premier cas d'usage recommandé est la **mémoire locale d'un agent** : petit
 - [Calculateur mathématique et mémoire à quatre niveaux](docs/CALCULATEUR_MATHEMATIQUE.md)
 - [Benchmark du calculateur v0.4](docs/BENCHMARK_MATH_V04.md)
 - [Mesures du pipeline v0.3](docs/BENCHMARK_V03.md)
+- [Mémoire historique calculable](docs/MEMOIRE_HISTORIQUE_CALCULABLE.md)
+- [Benchmark du laboratoire historique v0.5](docs/BENCHMARK_HISTORY_V05.md)
 - [Croquis à l'origine de l'idée](docs/assets/croquis-original.jpg)
 
 ## Première définition de la réussite
@@ -441,6 +474,8 @@ Le premier jalon est réussi si le moteur peut, de façon déterministe et repro
 9. reprendre un travail interrompu sans doubler l'apprentissage.
 10. calculer une expression autorisée avec un résultat typé et validé par la politique du moteur sans écrire dans la mémoire ;
 11. importer explicitement et idempotemment le catalogue des règles, sans importer les résultats produits.
+12. calculer les 11 familles historiques annoncées uniquement lorsque leurs entrées sont disponibles et compatibles ;
+13. séparer le score sémantique du diagnostic de plomberie et ne rien scorer tant que le pipeline est incomplet.
 
 ## Feuille de route courte
 
@@ -448,7 +483,7 @@ Le premier jalon est réussi si le moteur peut, de façon déterministe et repro
 - **v0.2 — Données :** import JSON en deux temps, idempotence, provenance et exemples interrogeables.
 - **v0.3 — Pipeline séparé :** file durable, tickets `HTTP 202`, worker de consolidation, lecteur distinct et métriques de retard/dédoublonnage/taille.
 - **v0.4 — Calcul déterministe :** catalogue versionné, expressions bornées, résultats traçables, benchmark avec oracle indépendant sans écriture mémoire et import explicite des règles.
-- **v0.5 — Échelle :** consolidation incrémentale, benchmarks de charge et politiques de mémoire active/consolidée/archivée.
+- **v0.5 — Histoire calculable :** oracle indépendant, 11 familles de dérivations, corpus fictif isolé et benchmark séparant score sémantique et plomberie.
 - **v0.6 — Modèle :** adaptateur pour petit modèle et expériences comparatives avec les baselines sans mémoire, calculatrice et RAG.
 
 Le plan complet, les critères d'acceptation et les tests sont décrits dans [docs/PLAN_DE_CREATION.md](docs/PLAN_DE_CREATION.md).

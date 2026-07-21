@@ -1,6 +1,6 @@
 # Architecture du moteur de mémoire
 
-Ce document formalise l'idée et son assemblage v0.4. Il décrit les responsabilités, le modèle de données, le pipeline asynchrone, la calculatrice déterministe, les règles d'apprentissage et les garde-fous. Les choix marqués **à valider** devront être testés pendant le prototype.
+Ce document formalise l'idée et son assemblage v0.5. Il décrit les responsabilités, le modèle de données, le pipeline asynchrone, la calculatrice déterministe, le laboratoire historique isolé, les règles d'apprentissage et les garde-fous. Les choix marqués **à valider** devront être testés pendant le prototype.
 
 ## 1. Objectifs d'architecture
 
@@ -17,6 +17,8 @@ Le moteur doit :
 - laisser le lecteur répondre pendant que le worker d'apprentissage écrit ;
 - exécuter une expression mathématique bornée sans transformer son résultat en souvenir ;
 - exposer un catalogue de règles versionné et ne l'importer qu'après une action explicite ;
+- mesurer le rappel temporel sur une vérité de référence indépendante sans contaminer la mémoire principale ;
+- conserver le lignage, l'unité et la version de chaque valeur historique dérivée ;
 - borner les parcours afin qu'un cycle ne provoque jamais une activation infinie.
 
 ## 2. Non-objectifs de la première version
@@ -52,7 +54,7 @@ flowchart TB
     EP -->|"consolidation traçable"| C1
 ```
 
-Le journal épisodique est la source de vérité des souvenirs consolidés. Depuis la v0.3, la file d'injection est la source durable de l'engagement de traitement entre le `HTTP 202` et l'acquittement du worker. En v0.4, le registre mathématique est la source de vérité des fonctions exécutables; leurs résultats restent éphémères. Les transitions du graphe sont des agrégats reconstruisibles. Cela permet de corriger ou de supprimer un événement, puis de recalculer exactement son influence.
+Le journal épisodique est la source de vérité des souvenirs consolidés. Depuis la v0.3, la file d'injection est la source durable de l'engagement de traitement entre le `HTTP 202` et l'acquittement du worker. En v0.4, le registre mathématique est la source de vérité des fonctions exécutables; leurs résultats restent éphémères. En v0.5, l'oracle historique indépendant possède la vérité des scénarios de stress et leurs dérivations, tandis que les bases de test restent temporaires. Les transitions du graphe sont des agrégats reconstruisibles. Cela permet de corriger ou de supprimer un événement, puis de recalculer exactement son influence.
 
 ## 4. Glossaire
 
@@ -75,6 +77,9 @@ Le journal épisodique est la source de vérité des souvenirs consolidés. Depu
 | Registre mathématique | Catalogue versionné des constantes, opérateurs et fonctions autorisés par la calculatrice. |
 | Résultat de calcul | Sortie éphémère, typée et validée par la politique du moteur; elle ne constitue jamais automatiquement un événement mémoire. |
 | Règle opérationnelle | Fonction déterministe testée et bornée dans le périmètre déclaré du registre. |
+| Oracle historique | Vérité de référence indépendante qui connaît les faits, contradictions et réponses attendues d'un scénario de test. |
+| Dérivation historique | Valeur calculée depuis des faits sources avec formule, unité, version et identifiants de dépendance. |
+| Temps de validité | Période pendant laquelle un fait est présenté comme vrai; elle reste distincte du temps d'ingestion. |
 | Oubli doux | Réduction de pertinence sans suppression de la source. |
 | Suppression forte | Effacement d'une source et recalcul de toutes les preuves et agrégats concernés. |
 
@@ -223,6 +228,10 @@ erDiagram
 21. Un run synthétique et tous ses tickets sont créés dans une seule transaction : le run est complet ou absent.
 22. Le serveur, et non le navigateur, possède le cycle de nettoyage d'un run synthétique; fermer l'onglet ne peut donc pas abandonner ses souvenirs dans la mémoire.
 23. Le nettoyage est rejouable après interruption et conserve un bilan persistant même après la suppression des événements et tickets synthétiques.
+24. Un run historique n'ouvre jamais la mémoire principale; ses fichiers mémoire et file appartiennent au même répertoire temporaire supprimé après fermeture.
+25. Une dérivation historique contient la formule autorisée, les entrées, l'unité, la version et les identifiants de ses faits sources; elle ne constitue pas une preuve indépendante.
+26. Le temps de validité historique et l'ordre d'ingestion restent deux dimensions distinctes, même lorsque le lecteur courant ne sait pas encore les classer séparément.
+27. Deux affirmations incompatibles sont conservées et signalées; l'oracle ne les fusionne ou ne les supprime jamais silencieusement.
 
 Pour le MVP, les concepts sont privés à une portée. Des concepts système globaux pourront être ajoutés plus tard comme référentiel en lecture seule, sans rendre les souvenirs privés globaux.
 

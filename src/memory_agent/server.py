@@ -34,6 +34,11 @@ from memory_agent.json_import import (
     decode_json_import_content,
     prepare_json_import,
 )
+from memory_agent.history_stress_lab import (
+    HistoryStressConfig,
+    history_stress_catalog,
+    run_history_stress,
+)
 from memory_agent.math_engine import MathEngine, MathEngineError, MathLimits
 from memory_agent.memory import MemoryEngine
 from memory_agent.pipeline import (
@@ -49,6 +54,7 @@ DEFAULT_DB_PATH = PROJECT_ROOT / "data" / "memory.sqlite3"
 
 MAX_BODY_BYTES = 3 * 1024 * 1024
 MAX_CHAT_BODY_BYTES = 16 * 1024
+MAX_HISTORY_STRESS_BODY_BYTES = 4 * 1024
 MAX_MESSAGE_CHARS = 4_000
 MAX_STATIC_BYTES = 2 * 1024 * 1024
 MAX_MEMORIES = 100
@@ -610,6 +616,9 @@ class MemoryHTTPServer(ThreadingHTTPServer):
         self.pipeline = pipeline
         self.math_engine = math_engine if math_engine is not None else MathEngine()
         self.engine_lock = threading.RLock()
+        # Le laboratoire est synchrone pour le MVP. Ce verrou distinct garantit
+        # qu'un seul corpus temporaire est actif sans bloquer les autres routes.
+        self.history_stress_lock = threading.Lock()
         self.web_root = web_root.resolve()
         self.started_at = time.monotonic()
         # Une execution locale represente une conversation. Tous ses messages
@@ -761,6 +770,10 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
             self._error(HTTPStatus.BAD_REQUEST, "Content-Length invalide.")
             return None
         if length < 0 or length > max_bytes:
+            # Le corps n'est volontairement pas lu. Fermer cette connexion
+            # après la réponse empêche ses octets restants d'être interprétés
+            # comme une nouvelle requête HTTP/1.1.
+            self.close_connection = True
             self._error(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, "Requête trop volumineuse.")
             return None
         try:
@@ -902,6 +915,35 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
                 self._send_json(
                     HTTPStatus.INTERNAL_SERVER_ERROR,
                     {"ok": False, "error": "Catalogue mathematique indisponible."},
+                    head_only=head_only,
+                )
+            return
+
+        if path == "/api/stress/history/catalog":
+            try:
+                library_catalog = history_stress_catalog()
+                if not isinstance(library_catalog, dict):
+                    raise TypeError("Le catalogue historique doit etre un objet")
+                catalog = dict(library_catalog)
+                library_bounds = library_catalog.get("config_bounds", {})
+                if not isinstance(library_bounds, dict):
+                    raise TypeError("Les limites historiques doivent etre un objet")
+                http_bounds = dict(library_bounds)
+                http_bounds["event_count"] = {"minimum": 5, "maximum": 100}
+                catalog["config_bounds"] = http_bounds
+                catalog["library_config_bounds"] = library_bounds
+                catalog["interface"] = "http_local"
+                _json_bytes(catalog)
+                self._send_json(
+                    HTTPStatus.OK,
+                    {"ok": True, "catalog": catalog},
+                    head_only=head_only,
+                )
+            except Exception:
+                LOGGER.exception("Impossible de lire le catalogue historique")
+                self._send_json(
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                    {"ok": False, "error": "Catalogue historique indisponible."},
                     head_only=head_only,
                 )
             return
@@ -1096,6 +1138,7 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
             "/api/calculate",
             "/api/import",
             "/api/math/catalog/import",
+            "/api/stress/history/run",
             "/api/pipeline/test",
             "/api/pipeline/test/cleanup",
             "/api/pipeline/jobs/status",
@@ -1112,10 +1155,15 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
             max_bytes=(
                 MAX_CHAT_BODY_BYTES
                 if path in {"/api/chat", "/api/calculate"}
+                else MAX_HISTORY_STRESS_BODY_BYTES
+                if path == "/api/stress/history/run"
                 else MAX_BODY_BYTES
             )
         )
         if payload is None:
+            return
+        if path == "/api/stress/history/run":
+            self._handle_history_stress_run(payload)
             return
         if path == "/api/calculate":
             self._handle_calculate(payload)
@@ -1175,6 +1223,78 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
             return
         status = response.pop("_http_status", HTTPStatus.OK)
         self._send_json(status, {"ok": True, **response})
+
+    def _handle_history_stress_run(self, payload: dict[str, Any]) -> None:
+        allowed_fields = {"event_count", "seed"}
+        unknown_fields = sorted(set(payload) - allowed_fields)
+        if unknown_fields:
+            self._error(
+                HTTPStatus.BAD_REQUEST,
+                "Parametre historique inconnu: " + ", ".join(unknown_fields),
+            )
+            return
+
+        event_count = payload.get("event_count")
+        if isinstance(event_count, bool) or not isinstance(event_count, int):
+            self._error(
+                HTTPStatus.BAD_REQUEST,
+                "event_count doit etre un entier entre 5 et 100.",
+            )
+            return
+        if not 5 <= event_count <= 100:
+            self._error(
+                HTTPStatus.BAD_REQUEST,
+                "event_count doit etre compris entre 5 et 100.",
+            )
+            return
+
+        seed = payload.get("seed")
+        if isinstance(seed, bool) or not isinstance(seed, int):
+            self._error(HTTPStatus.BAD_REQUEST, "seed doit etre un entier.")
+            return
+        if not 0 <= seed <= 2**63 - 1:
+            self._error(
+                HTTPStatus.BAD_REQUEST,
+                "seed doit etre compris entre 0 et 9223372036854775807.",
+            )
+            return
+
+        try:
+            config = HistoryStressConfig(event_count=event_count, seed=seed)
+        except (TypeError, ValueError) as error:
+            self._error(
+                HTTPStatus.BAD_REQUEST,
+                _clean_text(error, 300) or "Configuration historique invalide.",
+            )
+            return
+
+        if not self.server.history_stress_lock.acquire(blocking=False):
+            self._error(
+                HTTPStatus.CONFLICT,
+                "Un test historique est deja en cours. Reessayez apres sa fin.",
+            )
+            return
+
+        try:
+            report = run_history_stress(config)
+            if not isinstance(report, dict):
+                raise TypeError("Le laboratoire historique doit retourner un objet")
+            # Valide la reponse avant de commencer a ecrire les en-tetes HTTP.
+            _json_bytes(report)
+        except Exception:
+            LOGGER.exception("Erreur interne du laboratoire historique")
+            self._error(
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                "Le laboratoire historique a rencontre une erreur interne.",
+            )
+            return
+        finally:
+            self.server.history_stress_lock.release()
+
+        self._send_json(
+            HTTPStatus.OK,
+            {"ok": True, "report": report},
+        )
 
     def _handle_calculate(self, payload: dict[str, Any]) -> None:
         expression = payload.get("expression")
