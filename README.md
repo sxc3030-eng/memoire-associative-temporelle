@@ -2,7 +2,7 @@
 
 > Un moteur expérimental de mémoire épisodique, sémantique et explicable pour agents.
 
-**Statut :** prototype local v0.1 fonctionnel — concept expérimental, sans revendication de résultat scientifique.
+**Statut :** prototype local v0.3 fonctionnel — pipeline d'injection asynchrone expérimental, sans revendication de résultat scientifique.
 
 Ce dépôt transforme un croquis initial en une proposition testable : conserver ce qui s'est produit dans l'ordre, consolider les motifs entre plusieurs expériences, puis retrouver ou prolonger une séquence à partir d'indices incomplets.
 
@@ -39,6 +39,14 @@ py start_agent.py          # Windows
 python start_agent.py      # macOS ou Linux
 ```
 
+Pour tester la séparation v0.3 entre réception, apprentissage et lecture :
+
+```bash
+python start_agent.py --async-injection
+```
+
+Dans ce mode, une observation est d'abord inscrite dans une file SQLite durable distincte. Un worker la consolide ensuite dans la mémoire avec une connexion d'écriture, pendant que le serveur répond aux questions avec une autre connexion de lecture. L'API accepte donc rapidement l'observation, sans prétendre qu'elle est déjà interrogeable.
+
 ### Conversation d'essai
 
 ```text
@@ -53,7 +61,7 @@ Qu'est-ce qui vient après Rio aime ?
 Le bouton **Importer JSON** de l'interface accepte un fichier `.json` UTF-8 contenant un objet ou une liste, jusqu'à 1 Mio et 200 souvenirs utiles. On peut le choisir ou le glisser dans la fenêtre guidée. L'import reste local et suit deux étapes :
 
 1. **Aperçu** — le fichier est validé et décodé, ses valeurs utiles sont transformées en souvenirs proposés et rangées dans des catégories informatives ; rien n'est encore écrit dans la mémoire.
-2. **Confirmation** — le bouton **Importer … souvenirs** enregistre les éléments valides, puis l'interface actualise les statistiques et les souvenirs. Chaque élément garde son nom de fichier, son chemin JSON et un identifiant d'import.
+2. **Confirmation** — le bouton **Importer … souvenirs** enregistre les éléments valides, puis l'interface actualise les statistiques et les souvenirs. Chaque élément garde son nom de fichier, son chemin JSON et un identifiant d'import. En mode `--async-injection`, la confirmation retourne `HTTP 202 Accepted` avec un ticket par souvenir : le fichier est accepté dans la file, puis devient visible après consolidation.
 
 Un fichier d'essai est fourni dans [`examples/souvenirs-exemple.json`](examples/souvenirs-exemple.json). Il contient un profil, des préférences, des projets et un événement. Les objets imbriqués et les tableaux sont parcourus sans exécuter leur contenu ; par exemple, la valeur `Atlas` garde le chemin `$.projets[0].nom` comme élément de provenance.
 
@@ -80,6 +88,33 @@ Oublie <identifiant>
 
 Le moteur actuel n'est pas un modèle de langage. Il apprend des motifs de mots d'ordre 1 à 3, retrouve des épisodes et montre les preuves utilisées. Une intégration avec un LLM pourra être ajoutée après validation de cette mémoire de base.
 
+### Observer le pipeline v0.3
+
+Une écriture asynchrone retourne un `job_id`. Son état passe normalement de `pending` à `processing`, puis à `completed`; après un nombre borné d'échecs, il passe à `failed`. Les routes locales suivantes permettent de suivre le traitement sans exposer le texte du souvenir :
+
+```text
+GET /api/pipeline
+GET /api/pipeline/jobs/<job_id>
+```
+
+`GET /api/pipeline` publie notamment la profondeur de file, son retard, l'état du worker, le nombre de soumissions reçues et dédoublonnées, ainsi que les tailles de la mémoire et de la file en incluant leurs journaux WAL/SHM. Une même clé d'idempotence avec le même contenu retrouve le ticket original; la réutiliser avec un autre fait est refusé.
+
+Le pipeline applique une livraison **au moins une fois** entre la file et le moteur. L'idempotence du moteur empêche un crash situé après l'apprentissage mais avant l'acquittement de renforcer deux fois le même souvenir.
+
+La file et la connexion écrivain de la mémoire valident leurs mutations SQLite avec `synchronous=FULL`. Les observations, oublis et nettoyages passent par cet écrivain durable; la connexion de lecture reste séparée et n'est jamais utilisée pour modifier la mémoire.
+
+### Mesurer le pipeline sans toucher à la mémoire principale
+
+```bash
+python scripts/benchmark_pipeline.py --count 100
+```
+
+Le benchmark crée ses propres bases temporaires, injecte un jeu déterministe comprenant des doublons, interroge la mémoire pendant les écritures, imprime un rapport JSON, puis supprime ces bases. Il mesure le nombre de soumissions uniques, complétées, échouées et dédoublonnées, le pourcentage de dédoublonnage, les latences d'injection moyenne/p50/p95, le débit de consolidation, les latences de rappel p50/p95/p99 pendant les écritures, les erreurs de lecture, la taille de la file, la taille de la mémoire et la séparation effective du lecteur et de l'écrivain.
+
+Le bouton **Tester avec 25 souvenirs** exerce le pipeline réel sans contaminer durablement la mémoire principale. Le serveur crée le run persistant et ses 25 tickets dans une seule transaction : ils existent tous, ou aucun n'existe. Dès que tous les tickets sont terminaux, le serveur retire automatiquement les événements synthétiques et les tickets, y compris si l'onglet a été fermé. Après un redémarrage, il reprend un nettoyage interrompu. Un bilan persistant conserve seulement l'état du run, ses compteurs, ses dates et une éventuelle erreur; les textes synthétiques ne deviennent jamais des preuves fiables.
+
+Important : la v0.3 réduit le temps d'attente de l'injecteur et maintient le lecteur disponible; elle ne rend pas encore la consolidation rapide à l'échelle du milliard. `MemoryEngine.observe` reconstruit encore les preuves de l'épisode et rafraîchit des agrégats globaux. Le coût augmente donc fortement avec la taille. La prochaine étape est une consolidation réellement incrémentale, des épisodes bornés et des compteurs de file sans scans globaux. Voir [`docs/BENCHMARK_V03.md`](docs/BENCHMARK_V03.md) pour les mesures et leur interprétation.
+
 ### Exécuter les tests
 
 ```bash
@@ -92,10 +127,12 @@ python -m unittest discover -s tests -v      # macOS ou Linux
 - le serveur refuse toute adresse autre que la boucle locale ;
 - aucune authentification n'est fournie, car le prototype n'est pas accessible depuis le réseau ;
 - les souvenirs restent dans `data/memory.sqlite3` et ne sont envoyés à aucun service externe ;
+- en mode asynchrone, les observations en attente sont aussi conservées localement dans `data/injection.sqlite3` ;
 - l'aperçu JSON doit être vérifié avant l'import, surtout lorsqu'un fichier contient des données personnelles ;
 - le contenu JSON est traité comme une donnée, jamais comme du code, et le fichier source complet n'est pas archivé ;
 - la base n'est pas encore chiffrée : ne pas y placer de secrets ;
-- le moteur est lexical et expérimental, pas un assistant général ni un système prêt pour la production.
+- le moteur est lexical et expérimental, pas un assistant général ni un système prêt pour la production ;
+- une réponse produite par l'agent n'est jamais replacée automatiquement dans la file d'apprentissage ; seules une observation extérieure, une action exécutée ou une confirmation explicite peuvent créer un souvenir fiable.
 
 ## Le problème visé
 
@@ -126,7 +163,10 @@ Cette séparation préserve simultanément :
 
 ```mermaid
 flowchart LR
-    E["Événement observé"] --> N["Normalisation"]
+    E["Événement observé"] --> I["Injecteur"]
+    I --> JQ["File SQLite durable"]
+    JQ --> W["Worker de consolidation"]
+    W --> N["Normalisation et apprentissage"]
 
     subgraph EP["Mémoire épisodique"]
         J["Journal chronologique"] --> O["Occurrences horodatées"]
@@ -145,12 +185,15 @@ flowchart LR
     N --> C
     O -.->|"INSTANCE_OF"| C
     S -.->|"preuves"| G
-    Q["Indices et contexte courant"] --> A
+    Q["Indices et contexte courant"] --> L["Lecteur distinct"]
+    L --> A
     S --> A
     G --> A
     K --> R["Rappel ou prédiction"]
     K --> X["Explication et provenance"]
 ```
+
+La file d'injection et la mémoire utilisent deux fichiers SQLite distincts. Le worker possède sa connexion d'écriture au moteur; le lecteur en possède une autre. Le mode WAL permet au lecteur de rester disponible pendant l'écriture, tout en conservant la règle SQLite d'un seul écrivain à la fois dans la base mémoire. La file et l'écrivain utilisent `synchronous=FULL` pour leurs mutations durables.
 
 ### 1. Journal chronologique
 
@@ -226,8 +269,8 @@ flowchart TD
     A --> B["8. Classer les chemins"]
     B --> R["9. Rappeler ou prédire"]
     R --> X["10. Expliquer avec les preuves"]
-    X --> F{"Résultat confirmé ?"}
-    F -->|"oui"| U
+    X --> F{"Observation extérieure ou confirmation ?"}
+    F -->|"oui, comme nouvelle entrée"| I
     F -->|"non ou inconnu"| Z["Ne pas auto-renforcer"]
 ```
 
@@ -237,7 +280,7 @@ Une sortie générée par l'agent ne doit jamais devenir automatiquement une obs
 
 | Opération | Rôle | Résultat attendu |
 |---|---|---|
-| `observe` | Enregistrer un événement ou une séquence avec provenance | Occurrences et étendues de preuve créées de façon idempotente |
+| `observe` | Enregistrer un événement ou une séquence avec provenance | En mode asynchrone, ticket durable `HTTP 202`, puis occurrences et preuves créées de façon idempotente |
 | `recall` | Retrouver des épisodes à partir d'indices incomplets | Épisodes classés, chemins et preuves |
 | `predict` | Classer les prochains concepts selon l'historique et le contexte | Candidats, scores relatifs et support |
 | `explain` | Composer l'explication incluse dans un rappel ou une prédiction | Facteurs de score et occurrences sources |
@@ -278,6 +321,21 @@ Les coefficients, le lissage et la calibration seront déterminés par l'évalua
 
 La contribution recherchée n'est pas un composant entièrement inédit pris isolément. Elle réside dans leur combinaison : **double représentation occurrence–concept, consolidation incrémentale et explication traçable jusqu'aux observations sources**.
 
+## Hypothèse de recherche : petit modèle et mémoire externe
+
+L'hypothèse à tester est qu'un **petit modèle couplé à une mémoire externe** peut laisser dans la mémoire une partie des faits précis, changeants ou personnels qui seraient autrement difficiles à graver dans l'entraînement. Si cette séparation fonctionne, elle pourrait réduire la quantité de données factuelles à répéter pendant l'entraînement et, pour une couverture factuelle donnée, permettre d'utiliser moins de paramètres.
+
+Ce n'est pas l'hypothèse qu'une base de souvenirs remplace un modèle. Les paramètres nécessaires à la langue, au raisonnement, à la représentation des concepts, à la planification et à l'usage correct des souvenirs restent dans le modèle. La mémoire ajoute aussi ses propres coûts : stockage, indexation, sélection du bon contexte, latence et risque de rappeler une mauvaise preuve.
+
+La comparaison minimale doit utiliser les mêmes questions, budgets et corpus de test pour :
+
+1. un grand modèle sans mémoire externe ;
+2. un petit modèle sans mémoire ;
+3. le même petit modèle avec recherche vectorielle comme baseline ;
+4. le même petit modèle avec cette mémoire associative temporelle.
+
+Les tests sépareront faits mémorisables, mises à jour après entraînement, ordre temporel, raisonnement sur plusieurs indices et qualité de langue. Ils mesureront exactitude, hallucinations, données d'entraînement, nombre de paramètres, tokens injectés, latence, mémoire vive et taille disque. Le projet ne conclura à une réduction utile que si le petit modèle avec mémoire rejoint ou dépasse une baseline plus grande sur les tâches factuelles ciblées sans masquer une baisse de raisonnement ou de langage.
+
 ## Applications possibles
 
 - mémoire persistante pour assistant ou agent IA ;
@@ -315,15 +373,18 @@ Le premier jalon est réussi si le moteur peut, de façon déterministe et repro
 3. retrouver un épisode à partir d'indices incomplets ;
 4. prédire correctement la branche la plus fréquente ou la plus contextuelle ;
 5. expliquer le résultat avec les observations exactes qui le soutiennent ;
-6. supprimer une observation et recalculer ses preuves et agrégats.
+6. supprimer une observation et recalculer ses preuves et agrégats ;
+7. accepter rapidement une observation dans une file durable et la retrouver après consolidation ;
+8. conserver la lecture disponible pendant que le worker écrit ;
+9. reprendre un travail interrompu sans doubler l'apprentissage.
 
 ## Feuille de route courte
 
-- **v0.1 — Fondations :** modèle concept/occurrence, stockage SQLite et scénarios de référence.
-- **v0.2 — Apprentissage :** transitions, contextes, idempotence et provenance.
-- **v0.3 — Rappel :** recherche bornée et chemins explicatifs.
-- **v0.4 — Prédiction :** historique d'ordre variable et comparaison aux baselines.
-- **v0.5 — Agent :** API locale et adaptateur pour un agent.
+- **v0.1 — Fondations :** modèle concept/occurrence, stockage SQLite, rappel et prédiction explicables.
+- **v0.2 — Données :** import JSON en deux temps, idempotence, provenance et exemples interrogeables.
+- **v0.3 — Pipeline séparé :** file durable, tickets `HTTP 202`, worker de consolidation, lecteur distinct et métriques de retard/dédoublonnage/taille.
+- **v0.4 — Échelle :** consolidation incrémentale, benchmarks de charge et politiques de mémoire active/consolidée/archivée.
+- **v0.5 — Modèle :** adaptateur pour petit modèle et expériences comparatives avec les baselines sans mémoire et RAG.
 
 Le plan complet, les critères d'acceptation et les tests sont décrits dans [docs/PLAN_DE_CREATION.md](docs/PLAN_DE_CREATION.md).
 
@@ -341,13 +402,13 @@ Ces questions sont laissées visibles afin que le prototype teste les hypothèse
 
 ## Publication et licence
 
-Ce dossier est prêt à devenir la base d'un dépôt GitHub. Avant une publication publique :
+Le projet est publié dans le dépôt GitHub [sxc3030-eng/memoire-associative-temporelle](https://github.com/sxc3030-eng/memoire-associative-temporelle). Pour les prochaines versions publiques :
 
-1. choisir un nom de projet définitif ;
-2. choisir une licence pour la documentation et, plus tard, pour le code ;
-3. retirer du croquis toute information personnelle éventuelle ;
-4. ouvrir les premières issues à partir des étapes de la feuille de route ;
-5. éviter toute revendication de nouveauté scientifique avant comparaison et expérimentation.
+1. choisir une licence explicite pour le code et la documentation ;
+2. vérifier que les exemples et le croquis ne contiennent aucune information personnelle ;
+3. ouvrir ou actualiser les issues à partir de la feuille de route ;
+4. publier les conditions exactes des benchmarks avec leurs résultats ;
+5. éviter toute revendication de nouveauté scientifique ou d'échelle massive avant comparaison et expérimentation.
 
 ## Origine
 

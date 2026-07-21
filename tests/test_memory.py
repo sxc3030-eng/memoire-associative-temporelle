@@ -9,7 +9,7 @@ import unittest
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from memory_agent import MemoryEngine
+from memory_agent import MemoryEngine, MemoryIdempotencyConflictError
 
 
 class MemoryEngineTests(unittest.TestCase):
@@ -49,8 +49,8 @@ class MemoryEngineTests(unittest.TestCase):
             idempotency_key="source:event-1",
         )
         duplicate = self.engine.observe(
-            "this text is ignored",
-            episode_id="episode-other",
+            "alpha beta gamma",
+            episode_id="episode-a",
             idempotency_key="source:event-1",
         )
 
@@ -61,6 +61,13 @@ class MemoryEngineTests(unittest.TestCase):
         self.assertEqual(prediction[0]["concept"], "gamma")
         self.assertEqual(prediction[0]["support_count"], 1)
         self.assertEqual(self.engine.stats()["events"], 1)
+
+        with self.assertRaises(MemoryIdempotencyConflictError):
+            self.engine.observe(
+                "this text conflicts",
+                episode_id="episode-a",
+                idempotency_key="source:event-1",
+            )
 
     def test_generated_text_is_recallable_but_does_not_reinforce(self) -> None:
         generated = self.engine.observe(

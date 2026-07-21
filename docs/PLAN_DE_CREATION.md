@@ -1,6 +1,6 @@
 # Plan de création du moteur de mémoire pour agent
 
-Ce plan vise un premier moteur petit, local, persistant et explicable. Le but n'est pas de construire immédiatement une « intelligence complète », mais de tester l'hypothèse centrale avec des résultats reproductibles.
+Ce plan vise un premier moteur petit, local, persistant et explicable. La v0.3 ajoute une file durable d'injection, un worker de consolidation et un lecteur distinct. Le but n'est pas de construire immédiatement une « intelligence complète », mais de tester les hypothèses centrales avec des résultats reproductibles.
 
 ## 1. Résultat attendu du MVP
 
@@ -13,7 +13,11 @@ Ce plan vise un premier moteur petit, local, persistant et explicable. Le but n'
 5. expliquer chaque résultat ;
 6. supprimer un événement et recalculer son influence ;
 7. redémarrer sans perdre ni modifier la mémoire ;
-8. prévisualiser puis importer un objet ou tableau JSON avec catégories et provenance.
+8. prévisualiser puis importer un objet ou tableau JSON avec catégories et provenance ;
+9. accepter rapidement une observation avec `HTTP 202` et un ticket durable ;
+10. consolider cette observation en arrière-plan puis exposer son état ;
+11. continuer à lire la mémoire pendant que le worker écrit ;
+12. reprendre un travail interrompu sans doubler l'apprentissage.
 
 ## 2. Périmètre fonctionnel
 
@@ -28,6 +32,11 @@ Ce plan vise un premier moteur petit, local, persistant et explicable. Le but n'
 - provenance, explication et suppression ;
 - API locale pour connecter un agent.
 - import JSON local avec validation, aperçu et confirmation explicite.
+- file SQLite d'injection séparée de la base mémoire ;
+- consolidation par lots bornés dans un worker d'arrière-plan ;
+- connexions de lecture et d'écriture distinctes vers la mémoire ;
+- tickets, retard de file et métriques de dédoublonnage et de taille ;
+- interdiction de réinjecter automatiquement une réponse générée.
 
 ### Reporté après validation
 
@@ -44,13 +53,17 @@ Ce plan vise un premier moteur petit, local, persistant et explicable. Le but n'
 
 | Besoin | Choix initial | Raison |
 |---|---|---|
-| Langage | Python 3.12 ou supérieur | prototypage rapide et écosystème de tests |
+| Langage | Python 3.11 ou supérieur | compatibilité déclarée dans `pyproject.toml` et bibliothèque standard suffisante |
 | Persistance | SQLite en mode WAL | local, transactionnel, facile à inspecter |
-| API | FastAPI | contrats simples pour l'intégration d'agents |
-| Validation | Pydantic | entrées et sorties explicites |
-| Tests | pytest | scénarios reproductibles et tests de propriétés |
-| Migrations | Alembic ou migrations SQL versionnées | évolution vérifiable du schéma |
-| Visualisation exploratoire | NetworkX en outil de développement seulement | inspection sans en faire la base de stockage |
+| Durabilité des mutations | `synchronous=FULL` pour la file et l'écrivain mémoire | un acquittement durable ne doit pas devancer la mutation qu'il confirme |
+| File d'injection | second fichier SQLite | acceptation rapide, reprise après arrêt et isolation du journal de travaux |
+| Consolidation | worker unique, lots bornés | apprentissage hors du temps de réponse et comportement mesurable |
+| Lecture | connexion `MemoryEngine` distincte | disponibilité du rappel pendant les écritures WAL |
+| API | `http.server` de la bibliothèque standard | prototype local sans dépendance; FastAPI reste une option future |
+| Validation | fonctions déterministes et dataclasses | entrées bornées sans dépendance externe |
+| Tests | `unittest` | scénarios reproductibles fournis par Python |
+| Migrations | version de schéma SQLite vérifiée explicitement | refus d'une version inconnue plutôt qu'une migration implicite |
+| Visualisation exploratoire | Mermaid et interface locale | inspection sans ajouter de moteur graphe |
 
 La base de données et l'API doivent rester derrière des interfaces afin de pouvoir remplacer SQLite ou HTTP sans réécrire le domaine.
 
@@ -102,6 +115,20 @@ Enregistre un événement ou une séquence. Exige une provenance et une clé d'i
 observe(scope, episode, events, context, provenance, idempotency_key)
 → event_ids, occurrence_ids, evidence_span_ids, updated_continuation_ids
 ```
+
+En v0.3, l'API HTTP asynchrone n'appelle pas directement ce contrat : elle place d'abord l'observation dans la file, puis le worker appelle `observe`.
+
+### `enqueue` et tickets v0.3
+
+```text
+enqueue(text, episode_id, context, provenance, idempotency_key)
+→ job_id, sequence, state, created, duplicate, enqueued_at
+
+GET /api/pipeline/jobs/<job_id>
+→ state, attempts, completed_at, last_error, résultat technique expurgé
+```
+
+Une création acceptée répond `HTTP 202`. Le ticket confirme la durabilité dans la file, pas encore la visibilité dans `recall`. Rejouer la même clé et le même payload retrouve le ticket; réutiliser la clé pour un autre payload est un conflit.
 
 ### `recall`
 
@@ -347,12 +374,25 @@ Attendu : le support brut conserve l'histoire, mais le score avec décroissance 
 - catégoriser les propositions par règles déterministes et afficher leur résumé avant confirmation ;
 - rendre le rejeu idempotent avec l'empreinte du document et le chemin de chaque valeur ;
 - appliquer les limites de taille, profondeur, nœuds, souvenirs et longueur de texte.
+- créer `injection.sqlite3`, séparé de `memory.sqlite3`, avec les états `pending`, `processing`, `completed` et `failed` ;
+- répondre `HTTP 202 Accepted` avec des tickets pour les souvenirs et commits JSON asynchrones ;
+- consolider les tickets par lots bornés avec retry exponentiel et récupération après interruption ;
+- ouvrir un `MemoryEngine` écrivain pour le worker et un `MemoryEngine` lecteur pour les questions ;
+- exposer `GET /api/pipeline` et `GET /api/pipeline/jobs/<job_id>` sans republier le texte du souvenir ;
+- publier le retard, le dédoublonnage et les tailles mémoire/file incluant DB, WAL et SHM ;
+- créer les runs synthétiques et tous leurs tickets dans une seule transaction durable ;
+- confier au serveur la détection de fin, l'oubli, la purge et la reprise du nettoyage, sans dépendre de l'onglet ;
+- conserver après purge un bilan de run persistant, sans texte synthétique ;
+- exécuter les observations, oublis et nettoyages par le writer mémoire configuré en `synchronous=FULL` ;
+- fournir le lancement expérimental `python start_agent.py --async-injection`.
 
 ```mermaid
 sequenceDiagram
     actor U as Utilisateur
     participant A as Agent
-    participant M as Moteur de mémoire
+    participant Q as File durable
+    participant W as Worker
+    participant M as Mémoire
     participant L as Modèle de langage
 
     U->>A: Nouvelle demande
@@ -361,13 +401,19 @@ sequenceDiagram
     A->>L: demande + mémoire sélectionnée
     L-->>A: réponse proposée
     A-->>U: réponse
-    U->>A: confirmation ou correction
-    A->>M: observe(fait confirmé, provenance)
+    Note over A,Q: La réponse proposée n'est jamais auto-réinjectée
+    U->>A: nouvelle observation ou correction
+    A->>Q: enqueue(fait, provenance, idempotency_key)
+    Q-->>A: 202 Accepted + job_id
+    Q->>W: lot borné
+    W->>M: observe avec la clé originale de la source
+    W->>Q: completed ou retry
 ```
 
 **Critères d'acceptation**
 
-- une sortie générée n'est jamais enregistrée comme fait avant confirmation ;
+- une sortie générée n'est jamais automatiquement replacée dans la file, même comme hypothèse ;
+- seule une nouvelle observation extérieure, une action exécutée ou une confirmation explicite peut déclencher `enqueue` ;
 - la portée d'un agent ne permet pas de lire celle d'un autre ;
 - chaque injection de mémoire dans le modèle peut être auditée ;
 - l'agent fonctionne encore si la mémoire est temporairement indisponible.
@@ -375,6 +421,14 @@ sequenceDiagram
 - le même fichier réimporté ne duplique pas les souvenirs déjà créés ;
 - un document invalide, trop profond ou trop volumineux échoue sans écriture partielle ;
 - chaque souvenir importé peut être relié à son import et à son chemin JSON.
+- un commit JSON asynchrone répond `202` avec un ticket par feuille et devient rappelable après consolidation ;
+- un arrêt entre l'écriture mémoire et l'acquittement ne crée pas un second événement au retry ;
+- le lecteur reste disponible pendant qu'un appel d'écriture du worker est bloqué ;
+- les tickets publics n'exposent ni texte, ni contexte, ni provenance.
+- un run de test est entièrement créé ou absent, jamais partiel ;
+- fermer l'onglet pendant le test n'abandonne aucun souvenir synthétique ;
+- un redémarrage reprend un nettoyage interrompu jusqu'à l'état `cleaned` ;
+- les événements et tickets du test disparaissent, mais son bilan final reste auditable sans leur contenu.
 
 **Livrable :** service local et exemple d'intégration d'agent.
 
@@ -386,6 +440,8 @@ sequenceDiagram
 
 - produire 100 000 occurrences synthétiques reproductibles ;
 - mesurer qualité, latence et croissance ;
+- mesurer séparément latence d'acceptation, débit du worker, retard de file et latence de lecture pendant consolidation ;
+- mesurer soumissions reçues, dédoublonnées, conflits d'idempotence et taille disque complète ;
 - comparer aux baselines ;
 - tester bruit, concepts populaires, empoisonnement et dérive ;
 - décider si les embeddings, PostgreSQL ou une base graphe apportent un gain mesuré.
@@ -397,6 +453,9 @@ sequenceDiagram
 - aucune explication sans preuve valide ;
 - aucune fuite de portée dans les tests d'isolation ;
 - croissance du nombre de motifs et de continuations mesurée et plafonnée par politique.
+- aucun ticket accepté perdu après redémarrage et aucun double renforcement après retry ;
+- latences p50/p95/p99 d'acceptation et de lecture rapportées avec le débit et le retard du worker ;
+- tailles de `injection.sqlite3` et `memory.sqlite3` rapportées séparément.
 
 **Livrable :** rapport d'évaluation et décision go/no-go pour la v1.
 
@@ -409,7 +468,10 @@ sequenceDiagram
 - ordre des occurrences ;
 - calcul des composantes de score ;
 - sélection du motif d'historique ;
-- règles de budget du parcours.
+- règles de budget du parcours ;
+- transitions d'état et budget fini d'essais d'un ticket ;
+- conflit lorsqu'une clé d'idempotence désigne un payload différent ;
+- calcul du taux de dédoublonnage, du retard et des tailles DB/WAL/SHM.
 
 ### Tests de propriétés
 
@@ -420,6 +482,9 @@ sequenceDiagram
 - toute preuve appartient à la portée autorisée ;
 - supprimer toutes les preuves supprime la continuation ;
 - deux continuations identiques dans la même portée, le même contexte et le même motif ne peuvent pas être créées par un retry.
+- une soumission dédoublonnée ne crée ni nouveau ticket ni nouvelle preuve ;
+- tout ticket non terminal est `pending` ou appartient au worker qui le traite ;
+- un ticket `completed` correspond à un événement mémoire ou à un résultat moteur marqué doublon.
 
 ### Tests d'intégration
 
@@ -428,9 +493,19 @@ sequenceDiagram
 - migrations ;
 - événement en retard ;
 - suppression et reconstruction ;
-- appels API concurrents légers.
+- appels API concurrents légers ;
 - aperçu JSON sans effet de bord, confirmation, rejeu identique et import d'une version modifiée ;
-- import d'un objet imbriqué, d'un tableau et des types scalaires acceptés.
+- import d'un objet imbriqué, d'un tableau et des types scalaires acceptés ;
+- redémarrage avec travaux `pending` et récupération de travaux interrompus en `processing` ;
+- crash simulé après `MemoryEngine.observe` mais avant acquittement, puis retry sans second événement ;
+- trois connexions indépendantes sur une base disque temporaire : injecteur, lecteur et worker ;
+- worker volontairement bloqué par `threading.Event` pendant que `/api/health`, `/api/pipeline` et une lecture existante doivent répondre ;
+- plusieurs producteurs rejouant la même clé simultanément, avec un seul ticket unique ;
+- import JSON asynchrone : `202`, un ticket par feuille, statut terminal puis rappel réussi.
+- échec injecté pendant la création d'un run synthétique : aucun run et aucun ticket partiel ne restent ;
+- fermeture simulée du client après le `202` : le serveur termine puis nettoie le run sans nouvel appel client ;
+- redémarrage pendant le nettoyage : reprise idempotente, absence d'événement synthétique et bilan final persistant ;
+- vérification que les mutations du writer et de la file utilisent le niveau de synchronisation durable attendu.
 
 ### Tests adversariaux
 
@@ -443,6 +518,9 @@ sequenceDiagram
 - JSON profondément imbriqué, tableau massif, chaîne trop longue et clé hostile telle que `__proto__` ;
 - modification des données entre l'aperçu et la confirmation ;
 - contenu ressemblant à du code, qui doit rester une simple chaîne.
+- réponse générée essayant de se réinjecter sans observation extérieure, qui doit être ignorée ;
+- croissance prolongée du backlog, erreurs répétées du worker et budget d'essais épuisé ;
+- clé d'idempotence valide réutilisée avec un contenu différent.
 
 ## 9. Mesures d'évaluation
 
@@ -452,9 +530,13 @@ sequenceDiagram
 | Rappel | Recall@k, MRR et taux de convergence des indices |
 | Explication | proportion de résultats entièrement soutenus par des occurrences |
 | Performance | latence p50/p95, mémoire vive et taille disque |
+| Injection asynchrone | latence p50/p95/p99 jusqu'au `202`, tickets/s, consolidations/s, retard p95 et backlog maximal |
+| Idempotence | soumissions reçues, dédoublonnées, conflits et nombre de renforcements doubles attendu : zéro |
+| Stockage | taille séparée de la file et de la mémoire, DB + WAL + SHM, puis coût marginal entre plusieurs tailles N |
 | Croissance | motifs et continuations par occurrence, concepts orphelins et taux de consolidation |
 | Oubli | temps de suppression et égalité après reconstruction |
 | Isolation | nombre de fuites de portée, attendu : zéro |
+| Modèle + mémoire | exactitude, hallucination, qualité de langue/raisonnement, paramètres, données d'entraînement, tokens injectés et coût total |
 
 Si des probabilités calibrées sont ajoutées, mesurer aussi Brier score ou log loss. Avant cela, parler uniquement de scores relatifs.
 
@@ -476,13 +558,19 @@ Le prototype doit être meilleur sur au moins un besoin mesuré, et pas seulemen
 | Explosion combinatoire | uniquement relations autorisées, pas toutes les cooccurrences possibles |
 | Fausse confiance | score décomposé, support brut et avertissement de faible preuve |
 | Boucle d'activation | profondeur, énergie, nœuds, temps et revisites bornés |
-| Contamination par le modèle | statuts de provenance et confirmation obligatoire |
+| Contamination par le modèle | aucune auto-réinjection des réponses, provenance et nouvelle observation obligatoire |
 | Contextes incompatibles | clés typées et repli annoncé |
 | Suppression impossible | étendues de preuve par événement et reconstruction testée |
 | Concept mal fusionné | alias auditables et fusion réversible |
 | Surarchitecture | SQLite et algorithmes simples jusqu'à mesure contraire |
 | Mauvaise catégorie JSON | aperçu obligatoire, catégorie informative et chemin source conservé |
 | Import dupliqué ou hostile | empreinte + chemin, limites strictes et traitement en données uniquement |
+| Ticket perdu au redémarrage | file SQLite distincte et récupération des états non terminaux |
+| Double apprentissage après crash | livraison au moins une fois et rejeu de la clé d'idempotence originale de la source |
+| Backlog masqué | métriques de retard, profondeur, erreurs et état du worker |
+| Worker bloquant le lecteur | connexions distinctes, WAL, lots bornés et test de concurrence contrôlé |
+| Souvenirs de test laissés par un onglet fermé | run persistant et atomique, nettoyage possédé par le serveur et reprise après interruption |
+| Réduction de paramètres affirmée trop tôt | expériences contrôlées et séparation des capacités factuelles, linguistiques et de raisonnement |
 
 ## 12. Liste initiale d'issues GitHub
 
@@ -504,9 +592,16 @@ Le prototype doit être meilleur sur au moins un besoin mesuré, et pas seulemen
 - [ ] Exposer l'API locale.
 - [ ] Créer l'exemple d'intégration avec un agent.
 - [x] Ajouter l'import JSON en deux temps avec aperçu, limites et idempotence.
+- [x] Ajouter la file SQLite durable et séparée pour les injections.
+- [x] Ajouter le worker de consolidation et les connexions lecteur/écrivain distinctes.
+- [x] Retourner `HTTP 202` et des tickets pour la conversation et l'import asynchrones.
+- [x] Exposer les métriques de file, dédoublonnage, retard et taille mémoire.
+- [x] Tester qu'une réponse de rappel n'est jamais auto-réinjectée.
+- [x] Rendre les runs synthétiques atomiques, persistants et auto-nettoyés par le serveur avec bilan final.
 - [ ] Permettre plus tard la correction manuelle des catégories avant confirmation.
 - [ ] Ajouter un manifeste et l'oubli groupé par `import_id`.
 - [ ] Construire le benchmark de 100 000 occurrences.
+- [ ] Comparer grand modèle, petit modèle seul, petit modèle + RAG et petit modèle + mémoire associative.
 - [ ] Publier le premier rapport d'évaluation.
 
 ## 13. Ordre recommandé de décision
@@ -519,10 +614,51 @@ flowchart LR
     R --> X["Prédiction comparée"]
     X --> F["Oubli vérifiable"]
     F --> A["Connexion à un agent"]
-    A --> M["Mesures à plus grande échelle"]
+    A --> Q["Pipeline durable séparé"]
+    Q --> M["Mesures à plus grande échelle"]
     M --> C{"Complexité supplémentaire utile ?"}
-    C -->|"oui, gain mesuré"| V["Embeddings, Postgres ou base graphe"]
+    C -->|"oui, gain mesuré"| V["Baselines mémoire et modèle"]
     C -->|"non"| K["Conserver le moteur simple"]
 ```
 
 La première preuve de valeur n'est pas une démonstration spectaculaire. C'est un moteur capable d'apprendre deux chemins concurrents, de choisir le bon selon le contexte, de montrer exactement pourquoi, puis de corriger son choix lorsqu'une preuve est supprimée.
+
+## 14. Programme expérimental : petit modèle + mémoire
+
+### Hypothèse et limite
+
+Hypothèse : un petit modèle peut externaliser une partie des faits précis, changeants ou personnels dans cette mémoire. Il pourrait alors nécessiter moins de répétitions factuelles pendant l'entraînement et, pour une couverture factuelle ciblée, potentiellement moins de paramètres.
+
+Limite : la mémoire ne remplace pas les paramètres nécessaires à la compréhension et à la génération de la langue, au raisonnement, aux représentations générales, à la planification ni à la sélection correcte d'une preuve. Une amélioration factuelle ne permet donc pas à elle seule d'affirmer que le modèle entier peut être réduit.
+
+### Matrice comparative
+
+Évaluer au minimum les systèmes suivants avec les mêmes prompts, limites de contexte, outils, température et questions :
+
+| Système | Modèle | Mémoire externe |
+|---|---|---|
+| L0 | grand modèle de référence | aucune |
+| S0 | petit modèle | aucune |
+| S1 | même petit modèle | recherche lexicale ou chronologique simple |
+| S2 | même petit modèle | RAG vectoriel |
+| S3 | même petit modèle | mémoire associative temporelle v0.3 |
+| S3-a | même petit modèle | ablation sans ordre temporel |
+| S3-b | même petit modèle | ablation sans provenance |
+
+Si l'entraînement contrôlé est accessible, croiser au moins trois tailles de modèle avec plusieurs fractions du corpus factuel, par exemple `0 %`, `25 %`, `50 %` et `100 %`. Garder le corpus de langue et de raisonnement identique. La mémoire reçoit seulement les faits attribués à sa condition expérimentale, jamais les réponses du jeu de test.
+
+### Jeux de test séparés
+
+1. faits stables présents dans le corpus d'entraînement ;
+2. faits nouveaux injectés uniquement après l'entraînement ;
+3. correction d'un fait devenu faux et oubli ciblé de l'ancienne preuve ;
+4. ordre temporel, bifurcations et contexte ;
+5. combinaison de plusieurs indices ou preuves ;
+6. questions de langue et de raisonnement ne nécessitant aucune mémoire ;
+7. distracteurs, contradictions, source générée et tentative d'auto-réinjection.
+
+### Mesures et décision
+
+Rapporter par système : exactitude, Hit@k du rappel, taux d'hallucination, fidélité aux preuves, adaptation aux mises à jour, qualité de langue, réussite du raisonnement, paramètres, tokens et données d'entraînement, tokens de mémoire ajoutés au contexte, temps d'entraînement si disponible, latences p50/p95, débit et retard du worker, mémoire vive, taille disque et coût total estimé. Utiliser plusieurs graines ou répétitions lorsque le modèle est stochastique et publier les intervalles d'incertitude.
+
+L'hypothèse factuelle reçoit un signal favorable si `S3` dépasse nettement `S0` sur les faits nouveaux et temporels, reste compétitif face à `S2`, et ne dégrade pas les tâches sans mémoire au-delà d'une marge définie avant le test. Une réduction de données n'est soutenue que si une fraction factuelle plus faible atteint la même cible. Une réduction de paramètres n'est soutenue que si une taille plus petite atteint la cible d'un modèle plus grand. Le coût du stockage, du rappel et des tokens injectés doit être compté : déplacer un coût sans réduire le coût total n'est pas une victoire complète.

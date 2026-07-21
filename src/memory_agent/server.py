@@ -27,8 +27,18 @@ from typing import Any, Iterable
 from urllib.parse import parse_qs, unquote, urlsplit
 from uuid import UUID, uuid4
 
-from memory_agent.json_import import JSONImportError, decode_json_import_content
+from memory_agent.json_import import (
+    JSONImportError,
+    commit_json_import,
+    decode_json_import_content,
+    prepare_json_import,
+)
 from memory_agent.memory import MemoryEngine
+from memory_agent.pipeline import (
+    IdempotencyConflictError,
+    MemoryPipeline,
+    QueueStateError,
+)
 
 
 LOGGER = logging.getLogger("memory_agent.server")
@@ -41,6 +51,8 @@ MAX_CHAT_BODY_BYTES = 16 * 1024
 MAX_MESSAGE_CHARS = 4_000
 MAX_STATIC_BYTES = 2 * 1024 * 1024
 MAX_MEMORIES = 100
+MAX_PIPELINE_TEST_ITEMS = 250
+MAX_CONVERSATION_EPISODE_EVENTS = 32
 
 
 _OBSERVE_RE = re.compile(
@@ -306,8 +318,148 @@ def _explanation_reply(results: Any) -> str:
     return reply + "\nCe résultat arrive en tête selon ses correspondances, son support et sa récence."
 
 
+def _public_pipeline_job(job: dict[str, Any]) -> dict[str, Any]:
+    """Expose l'etat d'un travail sans republier le souvenir qu'il contient."""
+
+    result = job.get("result")
+    public_result: dict[str, Any] | None = None
+    if isinstance(result, dict):
+        public_result = {
+            key: result.get(key)
+            for key in ("event_id", "episode_id", "created", "duplicate")
+            if key in result
+        }
+    return {
+        "job_id": job.get("job_id"),
+        "sequence": job.get("sequence"),
+        "state": job.get("state"),
+        "attempts": job.get("attempts"),
+        "max_attempts": job.get("max_attempts"),
+        "enqueued_at": job.get("enqueued_at"),
+        "updated_at": job.get("updated_at"),
+        "completed_at": job.get("completed_at"),
+        "last_error": _clean_text(job.get("last_error"), 300) or None,
+        "duplicate_submission": bool(job.get("duplicate")),
+        "retried": bool(job.get("retried")),
+        "result": public_result,
+    }
+
+
+def _public_test_run(run: dict[str, Any]) -> dict[str, Any]:
+    """Expose persistent lifecycle state without ticket payloads or keys."""
+
+    return {
+        "run_id": run.get("run_id"),
+        "state": run.get("state"),
+        "expected_count": run.get("expected_count"),
+        "terminal_count": run.get("terminal_count"),
+        "successful_count": run.get("successful_count"),
+        "failed_count": run.get("failed_count"),
+        "forgotten_count": run.get("forgotten_count"),
+        "created_at": run.get("created_at"),
+        "updated_at": run.get("updated_at"),
+        "cleaned_at": run.get("cleaned_at"),
+        "last_error": _clean_text(run.get("last_error"), 300) or None,
+    }
+
+
+def _public_pipeline_status(pipeline: MemoryPipeline) -> dict[str, Any]:
+    queue = pipeline.queue.stats()
+    worker = pipeline.worker.stats()
+    test_runs = pipeline.queue.list_test_runs(limit=50)
+    durable_cleanup_error = next(
+        (
+            run.get("last_error")
+            for run in test_runs
+            if run.get("state") == "cleanup_failed" and run.get("last_error")
+        ),
+        None,
+    )
+    received = int(queue.get("enqueue_requests", queue.get("total", 0)))
+    deduplicated = int(queue.get("deduplicated_requests", 0))
+    unique = int(queue.get("total", 0))
+    memory_path = Path(pipeline.reader_engine.db_path).expanduser()
+    if pipeline.reader_engine.db_path == ":memory:":
+        size_bytes = None
+    else:
+        size_bytes = sum(
+            candidate.stat().st_size if candidate.exists() else 0
+            for candidate in (
+                memory_path,
+                Path(str(memory_path) + "-wal"),
+                Path(str(memory_path) + "-shm"),
+            )
+        )
+    return {
+        "enabled": True,
+        "mode": "injection_separee",
+        "reader_writer_separated": (
+            pipeline.reader_engine is not pipeline.writer_engine
+        ),
+        "pending": int(queue.get("pending", 0)),
+        "processing": int(queue.get("processing", 0)),
+        "completed": int(queue.get("completed", 0)),
+        "failed": int(queue.get("failed", 0)),
+        "unfinished": int(queue.get("unfinished", 0)),
+        "total_unique_jobs": unique,
+        "received_submissions": received,
+        "deduplicated_submissions": deduplicated,
+        "deduplication_percent": (
+            round(100.0 * deduplicated / received, 2) if received else 0.0
+        ),
+        "lag_seconds": float(queue.get("lag_seconds", 0.0)),
+        "worker_running": bool(worker.get("running")),
+        "worker_error": _clean_text(worker.get("fatal_error"), 300) or None,
+        "test_cleanup_error": _clean_text(
+            worker.get("maintenance_error") or durable_cleanup_error, 300
+        ) or None,
+        "last_error": _clean_text(queue.get("last_error"), 300) or None,
+        "test_runs": [
+            _public_test_run(run) for run in test_runs
+        ],
+        "memory_size_bytes": size_bytes,
+        "queue_size_bytes": queue.get("database_size_bytes"),
+        "storage_size_bytes": (
+            int(size_bytes or 0) + int(queue.get("database_size_bytes") or 0)
+        ),
+    }
+
+
+class _PipelineImportAdapter:
+    """Adapte l'import JSON existant vers la file durable."""
+
+    def __init__(self, pipeline: MemoryPipeline):
+        self.pipeline = pipeline
+        self.jobs: list[dict[str, Any]] = []
+
+    def observe(
+        self,
+        text: str,
+        episode_id: str | None = None,
+        context: dict[str, Any] | None = None,
+        source: str | dict[str, Any] = "user_confirmed",
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        job = self.pipeline.enqueue(
+            text,
+            episode_id=episode_id,
+            context=context,
+            source=source,
+            idempotency_key=idempotency_key or f"json-fallback:{uuid4()}",
+            payload_fingerprint=idempotency_key,
+            retry_terminal=True,
+        )
+        self.jobs.append(job)
+        return {
+            "event_id": job["job_id"],
+            "episode_id": episode_id,
+            "created": not bool(job.get("duplicate")),
+            "duplicate": bool(job.get("duplicate")),
+        }
+
+
 class MemoryHTTPServer(ThreadingHTTPServer):
-    """Serveur partageant un moteur protege par un verrou."""
+    """Serveur de lecture, avec un pipeline d'ecriture facultatif."""
 
     daemon_threads = True
     allow_reuse_address = True
@@ -317,6 +469,7 @@ class MemoryHTTPServer(ThreadingHTTPServer):
         server_address: tuple[str, int],
         engine: MemoryEngine,
         web_root: Path = DEFAULT_WEB_ROOT,
+        pipeline: MemoryPipeline | None = None,
     ) -> None:
         host = str(server_address[0]).strip().casefold()
         if host not in _LOOPBACK_HOSTS:
@@ -329,6 +482,7 @@ class MemoryHTTPServer(ThreadingHTTPServer):
         self.address_family = socket.AF_INET6 if host == "::1" else socket.AF_INET
         super().__init__(server_address, MemoryRequestHandler)
         self.engine = engine
+        self.pipeline = pipeline
         self.engine_lock = threading.RLock()
         self.web_root = web_root.resolve()
         self.started_at = time.monotonic()
@@ -336,6 +490,47 @@ class MemoryHTTPServer(ThreadingHTTPServer):
         # confirmes appartiennent au meme episode et apprennent donc aussi les
         # transitions entre deux appels distincts a ``observe``.
         self.conversation_episode_id = str(uuid4())
+        self.conversation_episode_events = 0
+        self.conversation_lock = threading.Lock()
+
+    def _reserve_conversation_episode_locked(self) -> str:
+        if self.conversation_episode_events >= MAX_CONVERSATION_EPISODE_EVENTS:
+            self.conversation_episode_id = str(uuid4())
+            self.conversation_episode_events = 0
+        self.conversation_episode_events += 1
+        return self.conversation_episode_id
+
+    def reserve_conversation_episode(self) -> str:
+        """Keep temporal episodes useful while bounding rebuild cost."""
+
+        with self.conversation_lock:
+            return self._reserve_conversation_episode_locked()
+
+    def enqueue_conversation_observation(
+        self, fact: str, *, idempotency_key: str
+    ) -> tuple[dict[str, Any], str]:
+        """Atomically preserve a request's original temporal episode on retry."""
+
+        if self.pipeline is None:
+            raise RuntimeError("Le pipeline n'est pas active")
+        with self.conversation_lock:
+            existing = self.pipeline.queue.get_by_idempotency_key(idempotency_key)
+            existing_episode = (
+                existing.get("episode_id") if isinstance(existing, dict) else None
+            )
+            episode_id = (
+                existing_episode
+                if isinstance(existing_episode, str) and existing_episode
+                else self._reserve_conversation_episode_locked()
+            )
+            job = self.pipeline.enqueue(
+                fact,
+                episode_id=episode_id,
+                source="user_confirmed",
+                idempotency_key=idempotency_key,
+                retry_terminal=True,
+            )
+            return job, episode_id
 
 
 class MemoryRequestHandler(BaseHTTPRequestHandler):
@@ -487,6 +682,11 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
             try:
                 with self.server.engine_lock:
                     stats = self.server.engine.stats()
+                pipeline_status = (
+                    _public_pipeline_status(self.server.pipeline)
+                    if self.server.pipeline is not None
+                    else {"enabled": False, "mode": "synchrone"}
+                )
             except Exception:
                 LOGGER.exception("La verification du moteur a echoue")
                 self._send_json(
@@ -495,15 +695,136 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
                     head_only=head_only,
                 )
                 return
+            pipeline_degraded = bool(
+                pipeline_status.get("enabled")
+                and (
+                    pipeline_status.get("worker_error")
+                    or (
+                        pipeline_status.get("unfinished", 0)
+                        and not pipeline_status.get("worker_running")
+                    )
+                )
+            )
             self._send_json(
-                HTTPStatus.OK,
+                HTTPStatus.SERVICE_UNAVAILABLE if pipeline_degraded else HTTPStatus.OK,
                 {
-                    "ok": True,
-                    "status": "ready",
+                    "ok": not pipeline_degraded,
+                    "status": "degraded" if pipeline_degraded else "ready",
+                    "read_available": True,
                     "uptime_seconds": round(time.monotonic() - self.server.started_at, 3),
                     "engine": "memory",
                     "stats_available": isinstance(stats, dict),
+                    "pipeline": pipeline_status,
                 },
+                head_only=head_only,
+            )
+            return
+
+        if path == "/api/pipeline":
+            if self.server.pipeline is None:
+                self._send_json(
+                    HTTPStatus.OK,
+                    {
+                        "ok": True,
+                        "pipeline": {"enabled": False, "mode": "synchrone"},
+                    },
+                    head_only=head_only,
+                )
+                return
+            try:
+                status = _public_pipeline_status(self.server.pipeline)
+                self._send_json(
+                    HTTPStatus.OK,
+                    {"ok": True, "pipeline": status},
+                    head_only=head_only,
+                )
+            except Exception:
+                LOGGER.exception("Impossible de lire l'etat du pipeline")
+                self._send_json(
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                    {"ok": False, "error": "Etat du pipeline indisponible."},
+                    head_only=head_only,
+                )
+            return
+
+        if path.startswith("/api/pipeline/test/runs/"):
+            if self.server.pipeline is None:
+                self._send_json(
+                    HTTPStatus.NOT_FOUND,
+                    {"ok": False, "error": "Pipeline non active."},
+                    head_only=head_only,
+                )
+                return
+            run_id = unquote(path.removeprefix("/api/pipeline/test/runs/"))
+            if re.fullmatch(r"[a-f0-9]{12}", run_id) is None:
+                self._send_json(
+                    HTTPStatus.BAD_REQUEST,
+                    {"ok": False, "error": "run_id de test invalide."},
+                    head_only=head_only,
+                )
+                return
+            try:
+                run = self.server.pipeline.queue.get_test_run(run_id)
+            except Exception:
+                LOGGER.exception("Impossible de lire le run de test")
+                self._send_json(
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                    {"ok": False, "error": "Etat du test indisponible."},
+                    head_only=head_only,
+                )
+                return
+            if run is None:
+                self._send_json(
+                    HTTPStatus.NOT_FOUND,
+                    {"ok": False, "error": "Run de test inconnu."},
+                    head_only=head_only,
+                )
+                return
+            self._send_json(
+                HTTPStatus.OK,
+                {"ok": True, "test_run": _public_test_run(run)},
+                head_only=head_only,
+            )
+            return
+
+        if path.startswith("/api/pipeline/jobs/"):
+            if self.server.pipeline is None:
+                self._send_json(
+                    HTTPStatus.NOT_FOUND,
+                    {"ok": False, "error": "Pipeline non active."},
+                    head_only=head_only,
+                )
+                return
+            job_id = unquote(path.removeprefix("/api/pipeline/jobs/"))
+            try:
+                UUID(job_id)
+            except (ValueError, AttributeError):
+                self._send_json(
+                    HTTPStatus.BAD_REQUEST,
+                    {"ok": False, "error": "Identifiant de travail invalide."},
+                    head_only=head_only,
+                )
+                return
+            try:
+                job = self.server.pipeline.queue.get(job_id)
+            except Exception:
+                LOGGER.exception("Impossible de lire un travail du pipeline")
+                self._send_json(
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                    {"ok": False, "error": "Travail indisponible."},
+                    head_only=head_only,
+                )
+                return
+            if job is None:
+                self._send_json(
+                    HTTPStatus.NOT_FOUND,
+                    {"ok": False, "error": "Travail inconnu."},
+                    head_only=head_only,
+                )
+                return
+            self._send_json(
+                HTTPStatus.OK,
+                {"ok": True, "job": _public_pipeline_job(job)},
                 head_only=head_only,
             )
             return
@@ -611,7 +932,13 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802 - API de BaseHTTPRequestHandler
         path = urlsplit(self.path).path
-        if path not in {"/api/chat", "/api/import"}:
+        if path not in {
+            "/api/chat",
+            "/api/import",
+            "/api/pipeline/test",
+            "/api/pipeline/test/cleanup",
+            "/api/pipeline/jobs/status",
+        }:
             if path.startswith("/api/"):
                 self._error(HTTPStatus.NOT_FOUND, "Route API inconnue.")
             else:
@@ -624,6 +951,15 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
             max_bytes=MAX_CHAT_BODY_BYTES if path == "/api/chat" else MAX_BODY_BYTES
         )
         if payload is None:
+            return
+        if path == "/api/pipeline/jobs/status":
+            self._handle_pipeline_job_status(payload)
+            return
+        if path == "/api/pipeline/test/cleanup":
+            self._handle_pipeline_test_cleanup(payload)
+            return
+        if path == "/api/pipeline/test":
+            self._handle_pipeline_test(payload)
             return
         if path == "/api/import":
             self._handle_json_import(payload)
@@ -639,9 +975,21 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
         if len(message) > MAX_MESSAGE_CHARS:
             self._error(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, "Le message est trop long.")
             return
+        request_id = payload.get("request_id")
+        if request_id is not None:
+            if not isinstance(request_id, str) or not request_id.strip():
+                self._error(HTTPStatus.BAD_REQUEST, "request_id doit etre une chaine non vide.")
+                return
+            request_id = request_id.strip()
+            if len(request_id) > 128:
+                self._error(HTTPStatus.BAD_REQUEST, "request_id est trop long.")
+                return
 
         try:
-            response = self._chat(message)
+            response = self._chat(message, request_id=request_id)
+        except IdempotencyConflictError as error:
+            self._error(HTTPStatus.CONFLICT, _clean_text(error, 300))
+            return
         except ValueError as error:
             self._error(HTTPStatus.BAD_REQUEST, _clean_text(error, 300) or "Demande invalide.")
             return
@@ -649,7 +997,129 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
             LOGGER.exception("Erreur du moteur pendant une conversation")
             self._error(HTTPStatus.INTERNAL_SERVER_ERROR, "Le moteur de mémoire a rencontré une erreur.")
             return
-        self._send_json(HTTPStatus.OK, {"ok": True, **response})
+        status = response.pop("_http_status", HTTPStatus.OK)
+        self._send_json(status, {"ok": True, **response})
+
+    def _handle_pipeline_job_status(self, payload: dict[str, Any]) -> None:
+        pipeline = self.server.pipeline
+        if pipeline is None:
+            self._error(HTTPStatus.CONFLICT, "Le pipeline d'apprentissage n'est pas active.")
+            return
+        job_ids = payload.get("job_ids")
+        if not isinstance(job_ids, list) or not 1 <= len(job_ids) <= 250:
+            self._error(
+                HTTPStatus.BAD_REQUEST,
+                "job_ids doit contenir entre 1 et 250 identifiants.",
+            )
+            return
+        clean_ids: list[str] = []
+        for value in job_ids:
+            if not isinstance(value, str):
+                self._error(HTTPStatus.BAD_REQUEST, "Chaque job_id doit etre une chaine.")
+                return
+            candidate = value.strip()
+            try:
+                UUID(candidate)
+            except ValueError:
+                self._error(HTTPStatus.BAD_REQUEST, "Un job_id est invalide.")
+                return
+            if candidate not in clean_ids:
+                clean_ids.append(candidate)
+        try:
+            jobs = pipeline.queue.get_many(clean_ids)
+        except Exception:
+            LOGGER.exception("Impossible de lire les travaux du pipeline")
+            self._error(HTTPStatus.INTERNAL_SERVER_ERROR, "Travaux indisponibles.")
+            return
+        self._send_json(
+            HTTPStatus.OK,
+            {"ok": True, "jobs": [_public_pipeline_job(job) for job in jobs]},
+        )
+
+    def _handle_pipeline_test(self, payload: dict[str, Any]) -> None:
+        pipeline = self.server.pipeline
+        if pipeline is None:
+            self._error(HTTPStatus.CONFLICT, "Le pipeline d'apprentissage n'est pas active.")
+            return
+        count = payload.get("count", 25)
+        if isinstance(count, bool) or not isinstance(count, int):
+            self._error(HTTPStatus.BAD_REQUEST, "count doit etre un entier.")
+            return
+        if not 1 <= count <= MAX_PIPELINE_TEST_ITEMS:
+            self._error(
+                HTTPStatus.BAD_REQUEST,
+                f"count doit etre compris entre 1 et {MAX_PIPELINE_TEST_ITEMS}.",
+            )
+            return
+
+        run_id = uuid4().hex[:12]
+        try:
+            # Le registre et tous les tickets sont commits ensemble. Il est
+            # impossible de perdre run_id/job_ids apres une insertion partielle.
+            test_run = pipeline.enqueue_test_run(run_id, count=count)
+            jobs = test_run["jobs"]
+        except Exception:
+            LOGGER.exception("Impossible de mettre le test en file")
+            self._error(
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                "Le test n'a pas pu etre place dans la file.",
+            )
+            return
+        self._send_json(
+            HTTPStatus.ACCEPTED,
+            {
+                "ok": True,
+                "queued": True,
+                "run_id": run_id,
+                "queued_count": len(jobs),
+                "job_ids": [job["job_id"] for job in jobs],
+            },
+        )
+
+    def _handle_pipeline_test_cleanup(self, payload: dict[str, Any]) -> None:
+        pipeline = self.server.pipeline
+        if pipeline is None:
+            self._error(HTTPStatus.CONFLICT, "Le pipeline d'apprentissage n'est pas active.")
+            return
+        run_id = payload.get("run_id")
+        if not isinstance(run_id, str) or re.fullmatch(r"[a-f0-9]{12}", run_id) is None:
+            self._error(HTTPStatus.BAD_REQUEST, "run_id de test invalide.")
+            return
+        job_ids = payload.get("job_ids")
+        if job_ids is not None and (
+            not isinstance(job_ids, list)
+            or not 1 <= len(job_ids) <= MAX_PIPELINE_TEST_ITEMS
+            or any(not isinstance(value, str) for value in job_ids)
+        ):
+            self._error(HTTPStatus.BAD_REQUEST, "job_ids de test invalides.")
+            return
+        try:
+            registered = pipeline.queue.get_test_run(run_id)
+            if registered is None:
+                self._error(HTTPStatus.NOT_FOUND, "Run de test inconnu.")
+                return
+            if job_ids is not None and set(job_ids) != set(registered["job_ids"]):
+                self._error(HTTPStatus.FORBIDDEN, "Ces travaux n'appartiennent pas au test.")
+                return
+            cleaned = pipeline.cleanup_test_run(run_id)
+        except QueueStateError as error:
+            self._error(HTTPStatus.CONFLICT, _clean_text(error, 300))
+            return
+        except Exception:
+            LOGGER.exception("Impossible de nettoyer les souvenirs de test")
+            self._error(HTTPStatus.INTERNAL_SERVER_ERROR, "Nettoyage du test incomplet.")
+            return
+        self._send_json(
+            HTTPStatus.OK,
+            {
+                "ok": True,
+                "run_id": run_id,
+                "forgotten": cleaned["forgotten_count"],
+                "successful_count": cleaned["successful_count"],
+                "failed_count": cleaned["failed_count"],
+                "state": cleaned["state"],
+            },
+        )
 
     def _handle_json_import(self, payload: dict[str, Any]) -> None:
         mode = payload.get("mode")
@@ -665,29 +1135,60 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
             )
             return
         filename = payload.get("filename")
+        response_status: HTTPStatus = HTTPStatus.OK
         try:
             data = (
                 decode_json_import_content(payload["content"])
                 if has_content
                 else payload["data"]
             )
-            with self.server.engine_lock:
-                if mode == "preview":
+            if mode == "preview":
+                with self.server.engine_lock:
                     result = self.server.engine.preview_json_import(
                         data,
                         filename=filename,
                     )
-                else:
-                    import_id = payload.get("import_id")
-                    if not isinstance(import_id, str) or not import_id.strip():
-                        raise JSONImportError(
-                            "import_id retourne par l'aperçu est requis pour confirmer"
-                        )
-                    result = self.server.engine.import_json(
-                        data,
-                        import_id=import_id,
-                        filename=filename,
+            else:
+                import_id = payload.get("import_id")
+                if not isinstance(import_id, str) or not import_id.strip():
+                    raise JSONImportError(
+                        "import_id retourne par l'aperçu est requis pour confirmer"
                     )
+                if self.server.pipeline is None:
+                    with self.server.engine_lock:
+                        result = self.server.engine.import_json(
+                            data,
+                            import_id=import_id,
+                            filename=filename,
+                        )
+                else:
+                    # La validation et la categorisation restent synchrones;
+                    # seules les ecritures de memoire partent en arriere-plan.
+                    plan = prepare_json_import(data, filename=filename)
+                    adapter = _PipelineImportAdapter(self.server.pipeline)
+                    result = commit_json_import(
+                        adapter,
+                        plan,
+                        import_id=import_id,
+                    )
+                    result.update(
+                        {
+                            "queued": True,
+                            "queued_count": sum(
+                                int(
+                                    bool(job.get("retried"))
+                                    or not bool(job.get("duplicate"))
+                                )
+                                for job in adapter.jobs
+                            ),
+                            "job_ids": [job["job_id"] for job in adapter.jobs],
+                            "consistency": "visible_apres_consolidation",
+                        }
+                    )
+                    response_status = HTTPStatus.ACCEPTED
+        except IdempotencyConflictError as error:
+            self._error(HTTPStatus.CONFLICT, _clean_text(error, 400))
+            return
         except JSONImportError as error:
             message = _clean_text(error, 400) or "Import JSON invalide."
             status = (
@@ -705,18 +1206,47 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
             LOGGER.exception("Erreur pendant l'import JSON")
             self._error(HTTPStatus.INTERNAL_SERVER_ERROR, "L'import JSON a rencontre une erreur.")
             return
-        self._send_json(HTTPStatus.OK, {"ok": True, "mode": mode, **result})
+        self._send_json(response_status, {"ok": True, "mode": mode, **result})
 
-    def _chat(self, message: str) -> dict[str, Any]:
+    def _chat(
+        self, message: str, *, request_id: str | None = None
+    ) -> dict[str, Any]:
         observe_match = _OBSERVE_RE.match(message)
         if observe_match:
             fact = observe_match.group(1).strip()
             if not fact:
                 raise ValueError("Il manque le souvenir à enregistrer.")
+            if self.server.pipeline is not None:
+                source_key = f"chat:{request_id or uuid4()}"
+                job, episode_id = self.server.enqueue_conversation_observation(
+                    fact, idempotency_key=source_key
+                )
+                public_job = _public_pipeline_job(job)
+                return {
+                    "_http_status": HTTPStatus.ACCEPTED,
+                    "intent": "observe",
+                    "reply": (
+                        "Souvenir reçu et placé dans la file d’apprentissage. "
+                        "Il deviendra interrogeable dès sa consolidation."
+                    ),
+                    "data": {
+                        **public_job,
+                        "queued": True,
+                        "episode_id": episode_id,
+                    },
+                    "details": {
+                        "intent": "observe",
+                        "queued": True,
+                        "job_id": job["job_id"],
+                        "state": job["state"],
+                        "episode_id": episode_id,
+                    },
+                }
+            episode_id = self.server.reserve_conversation_episode()
             with self.server.engine_lock:
                 result = self.server.engine.observe(
                     fact,
-                    episode_id=self.server.conversation_episode_id,
+                    episode_id=episode_id,
                     source="user_confirmed",
                 )
             duplicate = bool(result.get("duplicate")) if isinstance(result, dict) else False
@@ -778,8 +1308,13 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
         forget_match = _FORGET_RE.match(message)
         if forget_match:
             event_id = forget_match.group(1)
-            with self.server.engine_lock:
-                result = self.server.engine.forget(event_id)
+            if self.server.pipeline is not None:
+                # Pipeline deletions use the synchronous=FULL writer.  The
+                # NORMAL reader must never acknowledge a less durable delete.
+                result = self.server.pipeline.writer_engine.forget(event_id)
+            else:
+                with self.server.engine_lock:
+                    result = self.server.engine.forget(event_id)
             forgotten = bool(result.get("forgotten")) if isinstance(result, dict) else bool(result)
             reply = (
                 f"L’événement {event_id} a été oublié et les associations ont été recalculées."
@@ -851,6 +1386,18 @@ def _loopback_host(value: str) -> str:
     return host
 
 
+def _bounded_integer(value: str, *, name: str, minimum: int, maximum: int) -> int:
+    try:
+        parsed = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(f"{name} doit etre un entier") from error
+    if not minimum <= parsed <= maximum:
+        raise argparse.ArgumentTypeError(
+            f"{name} doit etre compris entre {minimum} et {maximum}"
+        )
+    return parsed
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Interface locale du moteur de mémoire associative")
     parser.add_argument(
@@ -866,6 +1413,33 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_DB_PATH,
         help=f"base SQLite (défaut: {DEFAULT_DB_PATH})",
     )
+    parser.add_argument(
+        "--async-injection",
+        action="store_true",
+        help="separe l'injection, la consolidation et la lecture",
+    )
+    parser.add_argument(
+        "--queue-db",
+        type=Path,
+        default=None,
+        help="journal SQLite des injections (defaut: injection.sqlite3 pres de --db)",
+    )
+    parser.add_argument(
+        "--pipeline-batch-size",
+        type=lambda value: _bounded_integer(
+            value, name="pipeline-batch-size", minimum=1, maximum=1_000
+        ),
+        default=16,
+        help="nombre maximal de souvenirs consolides par lot (defaut: 16)",
+    )
+    parser.add_argument(
+        "--pipeline-poll-ms",
+        type=lambda value: _bounded_integer(
+            value, name="pipeline-poll-ms", minimum=10, maximum=60_000
+        ),
+        default=100,
+        help="attente du consolidateur en millisecondes (defaut: 100)",
+    )
     return parser
 
 
@@ -875,20 +1449,47 @@ def main(argv: list[str] | None = None) -> int:
 
     db_path = args.db.expanduser().resolve()
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    engine = MemoryEngine(db_path)
+    engine: MemoryEngine | None = None
+    pipeline: MemoryPipeline | None = None
     server: MemoryHTTPServer | None = None
     try:
-        server = MemoryHTTPServer((args.host, args.port), engine)
+        if args.async_injection:
+            queue_path = (
+                args.queue_db.expanduser().resolve()
+                if args.queue_db is not None
+                else db_path.with_name("injection.sqlite3")
+            )
+            if queue_path == db_path:
+                raise ValueError("La file d'injection doit etre distincte de la memoire.")
+            queue_path.parent.mkdir(parents=True, exist_ok=True)
+            pipeline = MemoryPipeline(
+                db_path,
+                queue_path,
+                batch_size=args.pipeline_batch_size,
+                poll_interval=args.pipeline_poll_ms / 1_000.0,
+            )
+            engine = pipeline.reader_engine
+        else:
+            engine = MemoryEngine(db_path)
+        server = MemoryHTTPServer(
+            (args.host, args.port),
+            engine,
+            pipeline=pipeline,
+        )
         host, port = server.server_address[:2]
         display_host = f"[{host}]" if ":" in str(host) else host
-        LOGGER.info("Memoire disponible sur http://%s:%s", display_host, port)
+        mode = "pipeline separe" if pipeline is not None else "ecriture synchrone"
+        LOGGER.info("Memoire disponible sur http://%s:%s (%s)", display_host, port, mode)
         server.serve_forever(poll_interval=0.25)
     except KeyboardInterrupt:
         LOGGER.info("Arret demande")
     finally:
         if server is not None:
             server.server_close()
-        engine.close()
+        if pipeline is not None:
+            pipeline.close()
+        elif engine is not None:
+            engine.close()
     return 0
 
 

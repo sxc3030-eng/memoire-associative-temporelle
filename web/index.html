@@ -578,6 +578,100 @@
       margin-bottom: 24px;
     }
 
+    .pipeline-panel {
+      margin-bottom: 24px;
+      padding: 14px;
+      border: 1px solid rgba(31, 107, 85, 0.2);
+      border-radius: 16px;
+      background: linear-gradient(145deg, rgba(233, 245, 238, 0.78), rgba(255, 255, 255, 0.96));
+    }
+
+    .pipeline-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .pipeline-heading {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: 0.94rem;
+      line-height: 1.25;
+    }
+
+    .pipeline-state {
+      margin: 4px 0 0;
+      color: var(--ink-soft);
+      font-size: 0.72rem;
+      line-height: 1.4;
+    }
+
+    .pipeline-counters {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 7px;
+    }
+
+    .pipeline-counter {
+      min-width: 0;
+      padding: 9px 10px;
+      border: 1px solid rgba(199, 208, 199, 0.8);
+      border-radius: 11px;
+      background: rgba(255, 255, 255, 0.82);
+    }
+
+    .pipeline-counter strong,
+    .pipeline-counter span {
+      display: block;
+    }
+
+    .pipeline-counter strong {
+      margin-bottom: 3px;
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      line-height: 1;
+    }
+
+    .pipeline-counter span {
+      color: var(--ink-soft);
+      font-size: 0.65rem;
+      font-weight: 750;
+    }
+
+    .pipeline-counter[data-kind="processing"] strong {
+      color: var(--amber);
+    }
+
+    .pipeline-counter[data-kind="completed"] strong {
+      color: var(--green-dark);
+    }
+
+    .pipeline-counter[data-kind="failed"] strong,
+    .pipeline-last-error {
+      color: var(--red);
+    }
+
+    .pipeline-last-error {
+      margin: 10px 0 0;
+      font-size: 0.7rem;
+      line-height: 1.4;
+      overflow-wrap: anywhere;
+    }
+
+    .pipeline-research-metrics {
+      margin: 10px 0 0;
+      color: var(--ink-soft);
+      font-size: 0.68rem;
+      line-height: 1.45;
+    }
+
+    .pipeline-test-button {
+      width: 100%;
+      margin-top: 10px;
+    }
+
     .stat-card {
       min-height: 91px;
       padding: 13px;
@@ -1365,6 +1459,36 @@
             <div class="stat-card skeleton"><span class="stat-value">—</span><span class="stat-label">Chargement</span></div>
           </div>
 
+          <section class="pipeline-panel" id="pipeline-panel" aria-labelledby="pipeline-title">
+            <div class="pipeline-header">
+              <div>
+                <h3 class="pipeline-heading" id="pipeline-title">Pipeline d’apprentissage</h3>
+                <p class="pipeline-state" id="pipeline-state" role="status" aria-live="polite">Connexion à la file d’apprentissage…</p>
+              </div>
+            </div>
+            <div class="pipeline-counters" aria-label="État de l’apprentissage">
+              <div class="pipeline-counter" data-kind="pending">
+                <strong id="pipeline-pending">—</strong>
+                <span>En attente</span>
+              </div>
+              <div class="pipeline-counter" data-kind="processing">
+                <strong id="pipeline-processing">—</strong>
+                <span>En traitement</span>
+              </div>
+              <div class="pipeline-counter" data-kind="completed">
+                <strong id="pipeline-completed">—</strong>
+                <span>Terminés</span>
+              </div>
+              <div class="pipeline-counter" data-kind="failed">
+                <strong id="pipeline-failed">—</strong>
+                <span>Échecs</span>
+              </div>
+            </div>
+            <p class="pipeline-research-metrics" id="pipeline-metrics">Mesure des données reçues, des doublons évités et de la taille mémoire…</p>
+            <p class="pipeline-last-error" id="pipeline-last-error" role="alert" hidden></p>
+            <button class="secondary-button pipeline-test-button" id="pipeline-test" type="button">Tester avec 25 souvenirs</button>
+          </section>
+
           <p class="section-label">Souvenirs récents</p>
           <div class="memory-list" id="memory-list" aria-live="polite" aria-busy="true">
             <div class="memory-card skeleton"><p class="memory-title">Chargement des souvenirs…</p></div>
@@ -1446,7 +1570,7 @@
         <section class="import-stage" id="import-stage-success" hidden>
           <div class="import-success" role="status">
             <span class="success-mark" aria-hidden="true">✓</span>
-            <h3>Importation terminée</h3>
+            <h3 id="import-success-title">Importation terminée</h3>
             <p id="import-success-message">Les nouveaux souvenirs sont maintenant disponibles.</p>
           </div>
         </section>
@@ -1497,7 +1621,16 @@
         previewExamplesWrap: document.getElementById("preview-examples-wrap"),
         previewExamples: document.getElementById("preview-examples"),
         importErrorMessage: document.getElementById("import-error-message"),
-        importSuccessMessage: document.getElementById("import-success-message")
+        importSuccessTitle: document.getElementById("import-success-title"),
+        importSuccessMessage: document.getElementById("import-success-message"),
+        pipelineState: document.getElementById("pipeline-state"),
+        pipelinePending: document.getElementById("pipeline-pending"),
+        pipelineProcessing: document.getElementById("pipeline-processing"),
+        pipelineCompleted: document.getElementById("pipeline-completed"),
+        pipelineFailed: document.getElementById("pipeline-failed"),
+        pipelineMetrics: document.getElementById("pipeline-metrics"),
+        pipelineLastError: document.getElementById("pipeline-last-error"),
+        pipelineTest: document.getElementById("pipeline-test")
       };
 
       const importStages = {
@@ -1516,6 +1649,58 @@
         preview: null,
         busy: false,
         lastAction: null
+      };
+
+      const TEST_RUN_TRACKING_KEY = "memoire-associative-temporelle:test-runs:v1";
+      const TEST_RUN_NOTICES_KEY = "memoire-associative-temporelle:test-run-notices:v1";
+
+      function readStoredArray(key) {
+        try {
+          const value = JSON.parse(window.localStorage.getItem(key) || "[]");
+          return Array.isArray(value) ? value : [];
+        } catch (error) {
+          return [];
+        }
+      }
+
+      function writeStoredArray(key, value) {
+        try {
+          window.localStorage.setItem(key, JSON.stringify(value));
+        } catch (error) {
+          // Le suivi par l'état public du serveur reste disponible si le
+          // stockage local est désactivé par le navigateur.
+        }
+      }
+
+      function validTestRunId(value) {
+        return typeof value === "string" && /^[a-zA-Z0-9_-]{1,128}$/.test(value.trim());
+      }
+
+      const restoredTestRuns = readStoredArray(TEST_RUN_TRACKING_KEY)
+        .filter(item => item && typeof item === "object" && validTestRunId(item.runId))
+        .slice(-50)
+        .map(item => [item.runId.trim(), {
+          runId: item.runId.trim(),
+          queuedCount: numericCount(item.queuedCount) ?? 25,
+          createdAt: Number.isFinite(Number(item.createdAt)) ? Number(item.createdAt) : Date.now(),
+          cleanupFailureNotified: item.cleanupFailureNotified === true,
+          missingPolls: 0
+        }]);
+      const restoredTestRunNotices = readStoredArray(TEST_RUN_NOTICES_KEY)
+        .filter(validTestRunId)
+        .slice(-100)
+        .map(runId => runId.trim());
+
+      const pipelineState = {
+        timer: null,
+        refreshing: false,
+        testBusy: false,
+        operations: new Map(),
+        testRuns: new Map(restoredTestRuns),
+        notifiedTestRuns: new Set(restoredTestRunNotices),
+        nextOperationId: 1,
+        lastSnapshot: null,
+        chatRetry: null
       };
 
       const initialGreeting = "Bonjour. Pour me confier un souvenir, commencez par « Souviens-toi que… ». Vous pourrez ensuite me demander de le rappeler ou de prédire la suite d’un motif.";
@@ -1612,6 +1797,8 @@
         els.previewCategories.replaceChildren();
         els.previewExamples.replaceChildren();
         els.importErrorMessage.textContent = "";
+        els.importSuccessTitle.textContent = "Importation terminée";
+        els.importSuccessMessage.textContent = "Les nouveaux souvenirs sont maintenant disponibles.";
         els.importConfirm.disabled = false;
         els.importConfirm.textContent = "Importer les souvenirs";
         setImportBusy(false);
@@ -1637,6 +1824,441 @@
         if (typeof value === "number" && Number.isFinite(value)) return Math.max(0, Math.trunc(value));
         if (typeof value === "string" && /^\d+$/.test(value.trim())) return Number(value);
         return null;
+      }
+
+      function pipelineCount(sources, keys) {
+        for (const source of sources) {
+          if (!source || typeof source !== "object" || Array.isArray(source)) continue;
+          for (const key of keys) {
+            const value = numericCount(source[key]);
+            if (value !== null) return value;
+          }
+        }
+        return 0;
+      }
+
+      function pipelineNumber(sources, keys) {
+        for (const source of sources) {
+          if (!source || typeof source !== "object" || Array.isArray(source)) continue;
+          for (const key of keys) {
+            const value = Number(source[key]);
+            if (Number.isFinite(value) && value >= 0) return value;
+          }
+        }
+        return 0;
+      }
+
+      function normalizeTestRunState(value) {
+        const state = String(value || "").trim().toLowerCase();
+        if (["active", "cleaning", "cleanup_failed", "cleaned"].includes(state)) return state;
+        return null;
+      }
+
+      function normalizeTestRun(run) {
+        if (!run || typeof run !== "object" || !validTestRunId(run.run_id)) return null;
+        const state = normalizeTestRunState(run.state);
+        if (!state) return null;
+        const expectedCount = numericCount(run.expected_count) ?? 0;
+        const successfulCount = numericCount(run.successful_count) ?? 0;
+        const failedCount = numericCount(run.failed_count) ?? 0;
+        return {
+          runId: run.run_id.trim(),
+          state,
+          expectedCount,
+          terminalCount: numericCount(run.terminal_count) ?? successfulCount + failedCount,
+          successfulCount,
+          failedCount,
+          forgottenCount: numericCount(run.forgotten_count) ?? 0,
+          lastError: typeof run.last_error === "string" ? run.last_error : "",
+          createdAt: run.created_at ?? null,
+          updatedAt: run.updated_at ?? null
+        };
+      }
+
+      function normalizePipeline(payload) {
+        const nested = payload?.pipeline && typeof payload.pipeline === "object"
+          ? payload.pipeline
+          : null;
+        const counters = nested?.counters && typeof nested.counters === "object"
+          ? nested.counters
+          : payload?.counters && typeof payload.counters === "object"
+            ? payload.counters
+            : null;
+        const sources = [counters, nested, payload];
+        const pending = pipelineCount(sources, ["pending", "waiting", "queued_count", "pending_count"]);
+        const processing = pipelineCount(sources, ["processing", "running", "active", "processing_count"]);
+        const completed = pipelineCount(sources, ["completed", "succeeded", "done", "completed_count"]);
+        const failed = pipelineCount(sources, ["failed", "errors", "failed_count"]);
+        const jobsCandidate = nested?.recent_jobs ?? nested?.jobs ?? payload?.recent_jobs ?? payload?.jobs;
+        const jobs = Array.isArray(jobsCandidate) ? jobsCandidate.filter(job => job && typeof job === "object") : [];
+        const testRunsCandidate = nested?.test_runs ?? payload?.test_runs;
+        const testRuns = Array.isArray(testRunsCandidate)
+          ? testRunsCandidate.map(normalizeTestRun).filter(Boolean)
+          : [];
+        const errorCandidate = nested?.worker_error
+          ?? nested?.test_cleanup_error
+          ?? nested?.last_error
+          ?? payload?.last_error;
+        const lastError = typeof errorCandidate === "string"
+          ? errorCandidate
+          : errorCandidate && typeof errorCandidate === "object"
+            ? String(errorCandidate.message ?? errorCandidate.error ?? "")
+            : "";
+        return {
+          enabled: nested?.enabled !== false,
+          pending,
+          processing,
+          completed,
+          failed,
+          active: pending + processing,
+          jobs,
+          testRuns,
+          lastError,
+          received: pipelineCount(sources, ["received_submissions", "enqueue_requests"]),
+          deduplicated: pipelineCount(sources, ["deduplicated_submissions", "deduplicated_requests"]),
+          deduplicationPercent: pipelineNumber(sources, ["deduplication_percent"]),
+          memorySizeBytes: pipelineCount(sources, ["memory_size_bytes"]),
+          queueSizeBytes: pipelineCount(sources, ["queue_size_bytes"]),
+          workerRunning: nested?.worker_running !== false,
+          workerError: typeof nested?.worker_error === "string" ? nested.worker_error : ""
+        };
+      }
+
+      function normalizeJobState(value) {
+        const state = String(value || "").trim().toLowerCase();
+        if (["completed", "complete", "done", "success", "succeeded"].includes(state)) return "completed";
+        if (["failed", "failure", "error", "cancelled", "canceled"].includes(state)) return "failed";
+        if (["processing", "running", "active", "in_progress"].includes(state)) return "processing";
+        return "pending";
+      }
+
+      function jobIdentifiers(payload) {
+        const candidates = [
+          payload?.job_ids,
+          payload?.data?.job_ids,
+          payload?.pipeline?.job_ids,
+          payload?.job_id,
+          payload?.data?.job_id,
+          payload?.pipeline?.job_id
+        ];
+        const identifiers = [];
+        candidates.forEach(candidate => {
+          const values = Array.isArray(candidate) ? candidate : [candidate];
+          values.forEach(value => {
+            if (typeof value !== "string" && typeof value !== "number") return;
+            const identifier = String(value).trim();
+            if (identifier && !identifiers.includes(identifier)) identifiers.push(identifier);
+          });
+        });
+        return identifiers;
+      }
+
+      function persistTrackedTestRuns() {
+        const records = [...pipelineState.testRuns.values()].slice(-50).map(run => ({
+          runId: run.runId,
+          queuedCount: run.queuedCount,
+          createdAt: run.createdAt,
+          cleanupFailureNotified: run.cleanupFailureNotified === true
+        }));
+        writeStoredArray(TEST_RUN_TRACKING_KEY, records);
+      }
+
+      function persistTestRunNotices() {
+        const runIds = [...pipelineState.notifiedTestRuns].slice(-100);
+        pipelineState.notifiedTestRuns = new Set(runIds);
+        writeStoredArray(TEST_RUN_NOTICES_KEY, runIds);
+      }
+
+      function hasTestRunNotice(runId) {
+        if (pipelineState.notifiedTestRuns.has(runId)) return true;
+        const stored = readStoredArray(TEST_RUN_NOTICES_KEY)
+          .filter(validTestRunId)
+          .map(value => value.trim());
+        if (!stored.includes(runId)) return false;
+        pipelineState.notifiedTestRuns.add(runId);
+        return true;
+      }
+
+      function markTestRunNotified(runId) {
+        if (hasTestRunNotice(runId)) return false;
+        pipelineState.notifiedTestRuns.add(runId);
+        persistTestRunNotices();
+        return true;
+      }
+
+      function pipelineTestRunId(payload) {
+        const candidates = [payload?.run_id, payload?.data?.run_id, payload?.pipeline?.run_id];
+        const runId = candidates.find(validTestRunId);
+        return runId ? runId.trim() : null;
+      }
+
+      function registerPipelineTestRun(payload, queuedCount = 25) {
+        const runId = pipelineTestRunId(payload);
+        if (!runId) return false;
+        pipelineState.notifiedTestRuns.delete(runId);
+        persistTestRunNotices();
+        pipelineState.testRuns.set(runId, {
+          runId,
+          queuedCount: numericCount(queuedCount) ?? 25,
+          createdAt: Date.now(),
+          cleanupFailureNotified: false,
+          missingPolls: 0
+        });
+        persistTrackedTestRuns();
+        schedulePipelinePoll(80);
+        return true;
+      }
+
+      function registerPipelineOperation(kind, payload, queuedCount = 1) {
+        const id = `operation-${pipelineState.nextOperationId}`;
+        pipelineState.nextOperationId += 1;
+        pipelineState.operations.set(id, {
+          id,
+          kind,
+          jobIds: jobIdentifiers(payload),
+          queuedCount: numericCount(queuedCount) ?? 1,
+          createdAt: Date.now()
+        });
+        schedulePipelinePoll(80);
+      }
+
+      function pipelineCompletionMessage(operation) {
+        const count = operation.queuedCount;
+        if (operation.kind === "observe") {
+          return "Souvenir consolidé : il est maintenant disponible dans la mémoire.";
+        }
+        if (operation.kind === "import") {
+          return `Import JSON consolidé : ${formatNumber(count)} souvenir${count > 1 ? "s sont" : " est"} maintenant disponible${count > 1 ? "s" : ""}.`;
+        }
+        return `Test terminé : ${formatNumber(count)} souvenir${count > 1 ? "s ont" : " a"} été consolidé${count > 1 ? "s" : ""}.`;
+      }
+
+      function pipelineFailureMessage(operation) {
+        if (operation.kind === "observe") return "Le souvenir mis en file n’a pas pu être consolidé.";
+        if (operation.kind === "import") return "L’import JSON n’a pas pu être consolidé complètement.";
+        return "L’apprentissage a rencontré un échec.";
+      }
+
+      function pipelineTestCompletionMessage(run) {
+        return `Test terminé : ${formatNumber(run.successfulCount)} consolidation${run.successfulCount === 1 ? " réussie" : "s réussies"} · ${formatNumber(run.failedCount)} échec${run.failedCount === 1 ? "" : "s"} · ${formatNumber(run.forgottenCount)} souvenir${run.forgottenCount === 1 ? " temporaire retiré" : "s temporaires retirés"}.`;
+      }
+
+      function pipelineTestCleanupFailureMessage(run) {
+        const detail = run.lastError ? ` ${run.lastError}` : "";
+        return `Nettoyage automatique à reprendre : ${formatNumber(run.successfulCount)} consolidation${run.successfulCount === 1 ? " réussie" : "s réussies"} · ${formatNumber(run.failedCount)} échec${run.failedCount === 1 ? "" : "s"} · ${formatNumber(run.forgottenCount)} souvenir${run.forgottenCount === 1 ? " temporaire retiré" : "s temporaires retirés"}. Le moteur réessaie automatiquement.${detail}`;
+      }
+
+      function updatePipelineTestRuns(snapshot) {
+        const runsById = new Map(snapshot.testRuns.map(run => [run.runId, run]));
+        let trackingChanged = false;
+        let memoryChanged = false;
+
+        snapshot.testRuns.forEach(run => {
+          if (!["active", "cleaning", "cleanup_failed"].includes(run.state)) return;
+          if (pipelineState.testRuns.has(run.runId) || hasTestRunNotice(run.runId)) return;
+          const parsedCreatedAt = Date.parse(run.createdAt || "");
+          pipelineState.testRuns.set(run.runId, {
+            runId: run.runId,
+            queuedCount: run.expectedCount,
+            createdAt: Number.isFinite(parsedCreatedAt) ? parsedCreatedAt : Date.now(),
+            cleanupFailureNotified: false,
+            missingPolls: 0
+          });
+          trackingChanged = true;
+        });
+
+        pipelineState.testRuns.forEach((tracked, runId) => {
+          const run = runsById.get(runId);
+          if (!run) {
+            tracked.missingPolls = (tracked.missingPolls || 0) + 1;
+            const tooOld = Date.now() - tracked.createdAt > 24 * 60 * 60 * 1000;
+            if (tooOld && tracked.missingPolls >= 3) {
+              pipelineState.testRuns.delete(runId);
+              trackingChanged = true;
+            }
+            return;
+          }
+
+          tracked.missingPolls = 0;
+          tracked.queuedCount = run.expectedCount || tracked.queuedCount;
+          if (run.state === "cleanup_failed" && !tracked.cleanupFailureNotified) {
+            tracked.cleanupFailureNotified = true;
+            trackingChanged = true;
+            appendMessage("error", pipelineTestCleanupFailureMessage(run));
+          }
+
+          if (run.state !== "cleaned") return;
+          pipelineState.testRuns.delete(runId);
+          trackingChanged = true;
+          if (markTestRunNotified(runId)) {
+            appendMessage(run.failedCount > 0 ? "error" : "agent", pipelineTestCompletionMessage(run));
+          }
+          memoryChanged = true;
+        });
+
+        if (trackingChanged) persistTrackedTestRuns();
+        if (memoryChanged) void refreshMemory(true);
+      }
+
+      function updatePipelineOperations(snapshot) {
+        if (!pipelineState.operations.size) return;
+        const jobsById = new Map();
+        snapshot.jobs.forEach(job => {
+          const identifier = job.job_id ?? job.id;
+          if (identifier === undefined || identifier === null) return;
+          jobsById.set(String(identifier), normalizeJobState(job.state ?? job.status));
+        });
+
+        let memoryChanged = false;
+        pipelineState.operations.forEach((operation, operationId) => {
+          const knownStates = operation.jobIds
+            .map(identifier => jobsById.get(identifier))
+            .filter(Boolean);
+
+          const allKnownTerminal = operation.jobIds.length > 0
+            && knownStates.length === operation.jobIds.length
+            && knownStates.every(state => ["completed", "failed"].includes(state));
+
+          if (!allKnownTerminal) return;
+
+          const failed = knownStates.includes("failed");
+          pipelineState.operations.delete(operationId);
+          if (failed) {
+            appendMessage("error", pipelineFailureMessage(operation));
+          } else {
+            appendMessage("agent", pipelineCompletionMessage(operation));
+            memoryChanged = true;
+          }
+        });
+
+        if (memoryChanged) void refreshMemory(true);
+      }
+
+      function renderPipeline(payload) {
+        const snapshot = normalizePipeline(payload);
+        pipelineState.lastSnapshot = snapshot;
+        const hasTestCleanupFailure = snapshot.testRuns.some(run => run.state === "cleanup_failed");
+        const hasTestMaintenance = snapshot.testRuns.some(run => ["active", "cleaning"].includes(run.state));
+        els.pipelinePending.textContent = formatNumber(snapshot.pending);
+        els.pipelineProcessing.textContent = formatNumber(snapshot.processing);
+        els.pipelineCompleted.textContent = formatNumber(snapshot.completed);
+        els.pipelineFailed.textContent = formatNumber(snapshot.failed);
+        els.pipelineMetrics.textContent = snapshot.enabled
+          ? `${formatNumber(snapshot.received)} données reçues · ${formatNumber(snapshot.deduplicated)} doublons évités (${new Intl.NumberFormat("fr-CA", { maximumFractionDigits: 1 }).format(snapshot.deduplicationPercent)} %) · mémoire ${formatFileSize(snapshot.memorySizeBytes)} + file ${formatFileSize(snapshot.queueSizeBytes)}`
+          : "Le pipeline séparé n’est pas activé pour ce lancement.";
+        els.pipelineTest.disabled = !snapshot.enabled || pipelineState.testBusy;
+
+        if (!snapshot.enabled) {
+          els.pipelineState.textContent = "Mode synchrone";
+        } else if (snapshot.workerError || (!snapshot.workerRunning && snapshot.active > 0)) {
+          els.pipelineState.textContent = snapshot.active > 0
+            ? "Consolidateur arrêté · des souvenirs attendent"
+            : "Consolidateur en état dégradé";
+          setEngineStatus("offline", "Apprentissage arrêté · lecture disponible");
+        } else if (snapshot.active > 0) {
+          els.pipelineState.textContent = `${formatNumber(snapshot.pending)} en attente · ${formatNumber(snapshot.processing)} en traitement`;
+          setEngineStatus("online", "Moteur prêt · apprentissage en cours");
+        } else if (hasTestCleanupFailure) {
+          els.pipelineState.textContent = "Nettoyage du test à reprendre automatiquement";
+          setEngineStatus("online", "Lecture disponible · nettoyage à reprendre");
+        } else if (hasTestMaintenance) {
+          els.pipelineState.textContent = "Finalisation et nettoyage automatique du test";
+          setEngineStatus("online", "Moteur prêt · nettoyage en cours");
+        } else if (snapshot.failed > 0) {
+          els.pipelineState.textContent = "File vide · certains éléments demandent votre attention";
+        } else {
+          els.pipelineState.textContent = "File vide · apprentissage à jour";
+          setEngineStatus("online", "Moteur prêt");
+        }
+
+        els.pipelineLastError.hidden = !snapshot.lastError;
+        els.pipelineLastError.textContent = snapshot.lastError ? `Dernier échec : ${snapshot.lastError}` : "";
+        updatePipelineOperations(snapshot);
+        updatePipelineTestRuns(snapshot);
+        return snapshot;
+      }
+
+      function schedulePipelinePoll(delayMs) {
+        if (pipelineState.timer !== null) window.clearTimeout(pipelineState.timer);
+        pipelineState.timer = null;
+        if (document.hidden) return;
+        pipelineState.timer = window.setTimeout(() => {
+          pipelineState.timer = null;
+          void refreshPipeline(true);
+        }, delayMs);
+      }
+
+      async function refreshPipeline(silent = false) {
+        if (pipelineState.refreshing) return pipelineState.lastSnapshot;
+        pipelineState.refreshing = true;
+        let snapshot = pipelineState.lastSnapshot;
+        try {
+          const payload = await apiFetch("/api/pipeline", { timeoutMs: 6000 });
+          const trackedJobIds = [...new Set(
+            [...pipelineState.operations.values()]
+              .filter(operation => operation.kind !== "test")
+              .flatMap(operation => operation.jobIds)
+          )];
+          if (trackedJobIds.length) {
+            const trackedJobs = [];
+            for (let offset = 0; offset < trackedJobIds.length; offset += 250) {
+              const tracked = await apiFetch("/api/pipeline/jobs/status", {
+                method: "POST",
+                timeoutMs: 6000,
+                body: JSON.stringify({ job_ids: trackedJobIds.slice(offset, offset + 250) })
+              });
+              if (Array.isArray(tracked?.jobs)) trackedJobs.push(...tracked.jobs);
+            }
+            if (payload?.pipeline && typeof payload.pipeline === "object") {
+              payload.pipeline.recent_jobs = trackedJobs;
+            }
+          }
+          snapshot = renderPipeline(payload);
+        } catch (error) {
+          if (!silent || !pipelineState.lastSnapshot) {
+            els.pipelineState.textContent = "État de l’apprentissage indisponible";
+            els.pipelinePending.textContent = "—";
+            els.pipelineProcessing.textContent = "—";
+            els.pipelineCompleted.textContent = "—";
+            els.pipelineFailed.textContent = "—";
+          }
+        } finally {
+          pipelineState.refreshing = false;
+          const active = (snapshot?.active ?? 0) > 0
+            || pipelineState.operations.size > 0
+            || pipelineState.testRuns.size > 0;
+          schedulePipelinePoll(active ? 750 : 5000);
+        }
+        return snapshot;
+      }
+
+      async function testPipeline() {
+        if (pipelineState.testBusy) return;
+        pipelineState.testBusy = true;
+        els.pipelineTest.disabled = true;
+        els.pipelineTest.textContent = "Mise en file…";
+        try {
+          const payload = await apiFetch("/api/pipeline/test", {
+            method: "POST",
+            body: JSON.stringify({ count: 25 })
+          });
+          const queuedCount = numericCount(
+            payload?.queued_count ?? payload?.data?.queued_count ?? payload?.count
+          ) ?? 25;
+          if (!registerPipelineTestRun(payload, queuedCount)) {
+            throw new Error("Le moteur n’a pas retourné l’identifiant du test.");
+          }
+          appendMessage("agent", `${formatNumber(queuedCount)} souvenirs de test mis en file pour apprentissage.`);
+          setEngineStatus("online", "Moteur prêt · apprentissage en cours");
+          void refreshPipeline(true);
+        } catch (error) {
+          appendMessage("error", `Impossible de lancer le test d’apprentissage. ${error.message || "Réessayez dans un instant."}`);
+          els.pipelineState.textContent = "Le test n’a pas pu démarrer";
+        } finally {
+          pipelineState.testBusy = false;
+          els.pipelineTest.disabled = false;
+          els.pipelineTest.textContent = "Tester avec 25 souvenirs";
+        }
       }
 
       function normalizeCategories(payload) {
@@ -1909,7 +2531,23 @@
           const committed = payload?.import && typeof payload.import === "object"
             ? { ...payload, ...payload.import }
             : payload;
+          if (committed?.queued === true) {
+            const queuedCount = numericCount(
+              committed.queued_count ?? committed.data?.queued_count ?? committed.job_ids
+            ) ?? previewMemoryCount(importState.preview, normalizeCategories(importState.preview)) ?? 0;
+            const queuedText = `${formatNumber(queuedCount)} souvenir${queuedCount > 1 ? "s" : ""} mis en file pour apprentissage.`;
+            els.importSuccessTitle.textContent = "Importation mise en file";
+            els.importSuccessMessage.textContent = `${queuedText} Vous pouvez fermer cette fenêtre; le panneau d’apprentissage suivra la consolidation.`;
+            appendMessage("agent", `Import JSON mis en file. ${queuedText}`);
+            registerPipelineOperation("import", committed, queuedCount);
+            setEngineStatus("online", "Moteur prêt · apprentissage en cours");
+            setImportBusy(false);
+            showImportStage("success");
+            void refreshPipeline(true);
+            return;
+          }
           const summary = commitSummary(committed);
+          els.importSuccessTitle.textContent = "Importation terminée";
           els.importSuccessMessage.textContent = `${summary} Les statistiques et les souvenirs récents ont été actualisés.`;
           await refreshMemory(true);
           appendMessage("agent", `Import JSON terminé. ${summary}`);
@@ -2019,15 +2657,35 @@
         els.input.disabled = true;
         showTyping();
 
+        const previousRetry = pipelineState.chatRetry;
+        const requestId = previousRetry?.message === cleanMessage
+          ? previousRetry.requestId
+          : (globalThis.crypto?.randomUUID?.() || `web-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+        pipelineState.chatRetry = { message: cleanMessage, requestId };
+
         try {
           const data = await apiFetch("/api/chat", {
             method: "POST",
-            body: JSON.stringify({ message: cleanMessage })
+            body: JSON.stringify({ message: cleanMessage, request_id: requestId })
           });
+          pipelineState.chatRetry = null;
           hideTyping();
-          appendMessage("agent", data.reply || "J’ai traité votre message, mais aucune réponse textuelle n’a été fournie.", data.details);
-          setEngineStatus("online", "Moteur prêt");
-          await refreshMemory(true);
+          const queuedObserve = data?.intent === "observe" && jobIdentifiers(data).length > 0;
+          appendMessage(
+            "agent",
+            queuedObserve
+              ? "Souvenir mis en file pour apprentissage. Je vous indiquerai lorsqu’il sera consolidé."
+              : data.reply || "J’ai traité votre message, mais aucune réponse textuelle n’a été fournie.",
+            data.details
+          );
+          if (queuedObserve) {
+            registerPipelineOperation("observe", data, 1);
+            setEngineStatus("online", "Moteur prêt · apprentissage en cours");
+            void refreshPipeline(true);
+          } else {
+            setEngineStatus("online", "Moteur prêt");
+            await refreshMemory(true);
+          }
         } catch (error) {
           hideTyping();
           const isTimeout = error?.name === "AbortError";
@@ -2253,6 +2911,16 @@
       });
 
       els.refresh.addEventListener("click", () => refreshMemory(false));
+      els.pipelineTest.addEventListener("click", testPipeline);
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          if (pipelineState.timer !== null) window.clearTimeout(pipelineState.timer);
+          pipelineState.timer = null;
+        } else {
+          void refreshPipeline(true);
+        }
+      });
 
       els.openImport.addEventListener("click", () => {
         resetImport();
@@ -2310,6 +2978,7 @@
       });
 
       refreshMemory(false);
+      void refreshPipeline(false);
     })();
   </script>
 </body>
