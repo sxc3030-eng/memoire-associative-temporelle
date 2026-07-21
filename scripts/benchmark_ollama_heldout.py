@@ -64,6 +64,10 @@ def _parser() -> argparse.ArgumentParser:
         default="ollama",
         help="Nom ou chemin de l'executable local.",
     )
+    parser.add_argument(
+        "--expected-manifest-id",
+        help="ID Ollama exact attendu; le benchmark refuse un tag remplace.",
+    )
     parser.add_argument("--case-timeout-seconds", type=float, default=180.0)
     parser.add_argument("--preflight-timeout-seconds", type=float, default=30.0)
     parser.add_argument("--stop-timeout-seconds", type=float, default=30.0)
@@ -97,6 +101,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         config = OllamaCLIConfig(
             model=arguments.model,
             executable=arguments.ollama_executable,
+            expected_manifest_id=arguments.expected_manifest_id,
             case_timeout_seconds=arguments.case_timeout_seconds,
             preflight_timeout_seconds=arguments.preflight_timeout_seconds,
             stop_timeout_seconds=arguments.stop_timeout_seconds,

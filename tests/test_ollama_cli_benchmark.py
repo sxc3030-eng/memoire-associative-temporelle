@@ -15,6 +15,8 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 from memory_agent.matlm_heldout_benchmark import load_balanced_heldout
 from memory_agent.memory_native_curriculum import build_synthetic_memory_curriculum
 from memory_agent.ollama_cli_benchmark import (
+    _first_json_mapping,
+    _validate_raw_generated_answer,
     CommandResult,
     OllamaCLIBenchmarkError,
     OllamaCLIConfig,
@@ -26,7 +28,6 @@ from memory_agent.ollama_cli_benchmark import (
     run_ollama_cli_benchmark,
     validate_ollama_cli_config,
 )
-from memory_agent.ollama_cli_benchmark import _first_json_mapping
 
 
 SCRIPT_PATH = PROJECT_ROOT / "scripts" / "benchmark_ollama_heldout.py"
@@ -76,6 +77,14 @@ class _FakeRunner:
             return CommandResult(0, "ollama version 9.9-test\n", 1.0)
         if clean[1] == "show":
             return CommandResult(0, "test-only local model metadata\n", 1.0)
+        if clean[1:] == ("list",):
+            return CommandResult(
+                0,
+                "NAME ID SIZE MODIFIED\n"
+                "qwen2.5:14b-instruct-q4_0 5449194ff803 8.5 GB 2 months ago\n"
+                "qwen2.5:14b 0123456789ab 8.5 GB 2 months ago\n",
+                1.0,
+            )
         if clean[1] == "stop":
             return CommandResult(0, "", 1.0)
         if clean[1] != "run":
@@ -103,6 +112,23 @@ class _TimeoutOnceRunner(_FakeRunner):
 
 
 class OllamaCLIBenchmarkTests(unittest.TestCase):
+    def test_raw_contract_validation_does_not_repair_unicode(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            selection = load_balanced_heldout(
+                _write_dataset(Path(directory)),
+                limit=9,
+            )
+        case = selection.cases[0]
+        corrupted = dict(case.target)
+        corrupted["answer"] = corrupted["answer"].replace("é", "�", 1)
+
+        actual = _validate_raw_generated_answer(
+            json.dumps(corrupted, ensure_ascii=False),
+            case.capsule,
+        )
+
+        self.assertIn("�", actual["answer"])
+
     def test_content_parser_does_not_mistake_nested_abstention_for_root(self) -> None:
         corrupted = (
             'prefix {"abstained":false,"reason":"none",'
@@ -125,12 +151,15 @@ class OllamaCLIBenchmarkTests(unittest.TestCase):
                 OllamaCLIConfig(
                     model="qwen2.5:14b-instruct-q4_0",
                     executable="ollama-test",
+                    expected_manifest_id="5449194FF803",
                 ),
                 runner=runner,
                 resolve_executable=False,
             )
 
         self.assertEqual(report["schema_version"], REPORT_SCHEMA_VERSION)
+        self.assertEqual(report["model"]["manifest_id"], "5449194ff803")
+        self.assertTrue(report["model"]["manifest_id_verified"])
         self.assertEqual(
             report["dataset"]["selection_sha256"], selection.selection_sha256
         )
@@ -239,6 +268,39 @@ class OllamaCLIBenchmarkTests(unittest.TestCase):
                         OllamaCLIConfig(model=value),
                         resolve_executable=False,
                     )
+
+    def test_expected_manifest_id_is_normalized_and_must_be_hex(self) -> None:
+        clean = validate_ollama_cli_config(
+            OllamaCLIConfig(expected_manifest_id="ABCDEF012345")
+        )
+
+        self.assertEqual(clean.expected_manifest_id, "abcdef012345")
+        with self.assertRaisesRegex(OllamaCLIBenchmarkError, "hexadecimaux"):
+            validate_ollama_cli_config(
+                OllamaCLIConfig(expected_manifest_id="not-a-manifest")
+            )
+
+    def test_manifest_mismatch_aborts_before_generation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            selection = load_balanced_heldout(
+                _write_dataset(Path(directory)),
+                limit=9,
+            )
+        runner = _FakeRunner([case.target for case in selection.cases])
+
+        with self.assertRaisesRegex(OllamaCLIBenchmarkError, "ne correspond pas"):
+            run_ollama_cli_benchmark(
+                selection,
+                OllamaCLIConfig(
+                    model="qwen2.5:14b-instruct-q4_0",
+                    executable="ollama-test",
+                    expected_manifest_id="deadbeefcafe",
+                ),
+                runner=runner,
+                resolve_executable=False,
+            )
+
+        self.assertFalse(any(command[0][1] == "run" for command in runner.commands))
 
     def test_anchor_recall_accepts_paraphrase_but_not_wrong_factual_anchor(self) -> None:
         target = (

@@ -30,11 +30,12 @@ from .matlm_heldout_benchmark import (
     HeldoutSelection,
     normalize_exact_answer,
 )
-from .matlm_inference import MATLMInferenceError, validate_generated_answer
+from .matlm_inference import MATLMInferenceError, extract_json_object
 from .memory_native_curriculum import SYNTHETIC_TASK_ORDER
+from .native_llm_contract import ContractValidationError, validate_answer
 
 
-REPORT_SCHEMA_VERSION = "ollama-cli-heldout-benchmark-v1"
+REPORT_SCHEMA_VERSION = "ollama-cli-heldout-benchmark-v2"
 PLAN_SCHEMA_VERSION = "ollama-cli-heldout-plan-v1"
 DEFAULT_MODEL = "qwen2.5:14b-instruct-q4_0"
 MAX_PROMPT_BYTES = 1_000_000
@@ -44,6 +45,7 @@ MAX_TIMEOUT_SECONDS = 86_400.0
 MAX_TOTAL_TIMEOUT_SECONDS = 604_800.0
 MAX_ERROR_CHARACTERS = 300
 _MODEL_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/@:-]{0,255}$")
+_MODEL_MANIFEST_ID = re.compile(r"^[0-9a-fA-F]{12}$")
 _SYNTHETIC_ID = re.compile(r"(?<![A-Za-z0-9])SYN-[A-Za-z0-9-]+", re.IGNORECASE)
 _FICTIONAL_VALUE = re.compile(
     r"(?<![\w-])(?:code|état)-fictif-\d+",
@@ -91,6 +93,7 @@ class CommandRunner(Protocol):
 class OllamaCLIConfig:
     model: str = DEFAULT_MODEL
     executable: str = "ollama"
+    expected_manifest_id: str | None = None
     case_timeout_seconds: float = 180.0
     preflight_timeout_seconds: float = 30.0
     stop_timeout_seconds: float = 30.0
@@ -135,6 +138,16 @@ def _validate_model_name(value: Any) -> str:
     return value
 
 
+def _validate_expected_manifest_id(value: Any) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str) or not _MODEL_MANIFEST_ID.fullmatch(value):
+        raise OllamaCLIBenchmarkError(
+            "expected_manifest_id doit contenir 12 caracteres hexadecimaux"
+        )
+    return value.lower()
+
+
 def _validate_executable_label(value: Any) -> str:
     if not isinstance(value, str) or not value.strip() or "\x00" in value:
         raise OllamaCLIBenchmarkError("executable doit etre un nom ou chemin local")
@@ -172,6 +185,9 @@ def validate_ollama_cli_config(
         config,
         model=_validate_model_name(config.model),
         executable=executable,
+        expected_manifest_id=_validate_expected_manifest_id(
+            config.expected_manifest_id
+        ),
         case_timeout_seconds=_validate_number(
             config.case_timeout_seconds,
             label="case_timeout_seconds",
@@ -447,6 +463,18 @@ def _first_json_mapping(text: str) -> Mapping[str, Any] | None:
     return None
 
 
+def _validate_raw_generated_answer(
+    generated_text: str,
+    capsule: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Valide la sortie brute sans appliquer la réparation Unicode de l'UI."""
+
+    try:
+        return validate_answer(extract_json_object(generated_text), capsule)
+    except ContractValidationError as error:
+        raise MATLMInferenceError(f"sortie Ollama invalide: {error}") from error
+
+
 _CONTENT_METRICS = (
     "answer_exact_normalized",
     "answer_anchors_all",
@@ -685,7 +713,10 @@ def _run_case(
             )
         content_output = _first_json_mapping(result.stdout)
         try:
-            strict_output = validate_generated_answer(result.stdout, case.capsule)
+            strict_output = _validate_raw_generated_answer(
+                result.stdout,
+                case.capsule,
+            )
         except MATLMInferenceError as error:
             error_value = _safe_error(error)
         status = "ok" if strict_output is not None else "invalid_contract"
@@ -737,11 +768,42 @@ def _preflight(
         raise OllamaCLIBenchmarkError(
             "le modele demande n'est pas installe dans Ollama local; aucun pull automatique"
         )
+    listed = runner.run(
+        (config.executable, "list"),
+        input_text=None,
+        timeout_seconds=config.preflight_timeout_seconds,
+        stdout_limit=config.max_stdout_bytes,
+        stderr_limit=config.max_stderr_bytes,
+    )
+    if listed.returncode != 0:
+        raise OllamaCLIBenchmarkError("ollama list a echoue")
+    manifest_id = None
+    for line in listed.stdout.splitlines():
+        fields = line.split()
+        if (
+            len(fields) >= 2
+            and fields[0] == config.model
+            and _MODEL_MANIFEST_ID.fullmatch(fields[1])
+        ):
+            manifest_id = fields[1].lower()
+            break
+    if manifest_id is None:
+        raise OllamaCLIBenchmarkError(
+            "le tag exact n'a pas d'identifiant de manifeste dans ollama list"
+        )
+    if (
+        config.expected_manifest_id is not None
+        and manifest_id != config.expected_manifest_id
+    ):
+        raise OllamaCLIBenchmarkError(
+            "l'identifiant du manifeste local ne correspond pas a celui attendu"
+        )
     return {
         "version_output_sha256": hashlib.sha256(
             version.stdout.encode("utf-8")
         ).hexdigest(),
         "model_show_sha256": hashlib.sha256(shown.stdout.encode("utf-8")).hexdigest(),
+        "manifest_id": manifest_id,
     }
 
 
@@ -777,6 +839,7 @@ def benchmark_plan(
         "network": "offline",
         "transport": "ollama-cli-stdin",
         "model": clean.model,
+        "expected_manifest_id": clean.expected_manifest_id,
         "executable": Path(clean.executable).name,
         "selected_count": len(selection.cases),
         "selection_sha256": selection.selection_sha256,
@@ -866,6 +929,7 @@ def run_ollama_cli_benchmark(
         "model": {
             "tag": clean.model,
             "executable": Path(clean.executable).name,
+            "manifest_id_verified": clean.expected_manifest_id is not None,
             **preflight,
         },
         "global_metrics": _finish_counter(global_counter),
@@ -877,7 +941,7 @@ def run_ollama_cli_benchmark(
         "model_release_succeeded": release_succeeded,
         "cases": results,
         "metric_definitions": {
-            "contract_valid": "sortie acceptee sans tolerance par memory-native-answer-v1",
+            "contract_valid": "sortie brute acceptee sans reparation par memory-native-answer-v1",
             "answer_exact_normalized": "prose cible exacte apres NFKC, casefold et espaces reduits",
             "answer_anchor_recall": "rappel des identifiants, valeurs fictives, dates, ages, abstention et decision extraits de la cible",
             "answer_anchors_all": "toutes les ancres factuelles cible sont presentes; ce n'est pas une equivalence semantique",

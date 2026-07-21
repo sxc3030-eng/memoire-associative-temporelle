@@ -28,12 +28,21 @@ Le `dry-run` ne cherche même pas l'exécutable et ne lance aucun modèle.
 
 ## Pilote réel de neuf cas
 
-Fermer d'abord toute autre génération locale, puis lancer :
+Fermer d'abord toute autre génération locale. Créer ensuite un tag de test qui
+réutilise exactement les poids Qwen locaux et fixe seulement le décodage :
+
+```powershell
+ollama create matlm-qwen-benchmark:20260721 `
+  -f benchmark-models\qwen2.5-14b-deterministic.Modelfile
+```
+
+Puis lancer :
 
 ```powershell
 py -3.13 scripts\benchmark_ollama_heldout.py `
   --dataset training-data\matlm-dev-v8.jsonl `
-  --model qwen2.5:14b-instruct-q4_0 `
+  --model matlm-qwen-benchmark:20260721 `
+  --expected-manifest-id 4f09fde1182e `
   --ollama-executable "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" `
   --limit 9 `
   --case-timeout-seconds 180 `
@@ -57,7 +66,8 @@ Comparer uniquement des rapports dont `dataset.selection_sha256` est
 identique. Les scores répondent à des questions différentes :
 
 - `contract_valid` : la sortie respecte exactement
-  `memory-native-answer-v1` ;
+  `memory-native-answer-v1` dans sa forme brute, sans la réparation Unicode de
+  l'interface ;
 - `answer_exact_normalized` : la prose est identique à la cible après une
   normalisation minimale ;
 - `answer_anchor_recall` et `answer_anchors_all` : présence des identifiants
@@ -85,25 +95,33 @@ décrit dans `MAT_LM_BENCHMARK_PROTOCOL.md`.
 ## Résultat local du 21 juillet 2026
 
 Le témoin était le Qwen 2.5 Instruct Q4_0 déjà installé dans Ollama : 14,8
-milliards de paramètres, contexte annoncé de 32 768 tokens. Il a reçu la même
-sélection que MAT-LM, d'empreinte
+milliards de paramètres, contexte annoncé de 32 768 tokens, manifeste de base
+`5449194ff803`. Le tag de test `matlm-qwen-benchmark:20260721`, manifeste
+`4f09fde1182e`, réutilise ces poids et fixe température 0, graine 20260721,
+contexte 4 096 et sortie maximale 384. Il a reçu la même sélection que MAT-LM,
+d'empreinte
 `c884894291473583d82beaf8bd9d253d2c24ccded1f208ddfad33993e37c5d10`.
 
 | Mesure | Qwen 14,8B non adapté |
 |---|---:|
-| Contrat JSON strict | 4/9 |
+| Contrat JSON brut strict | 5/9 |
 | `request_id` correct | 9/9 |
 | Ensemble de preuves exact | 7/9 |
 | Toutes les ancres factuelles présentes | 3/9 |
-| Rappel moyen des ancres | 62,0 % |
-| Abstention exacte | 3/9 |
+| Rappel moyen des ancres | 56,5 % |
+| Abstention exacte | 4/9 |
 | Calculs exacts | 8/9 |
 | Réponse textuelle exactement identique | 0/9 |
 | Preuve inventée | 0 |
 
-Les neuf générations ont pris 77,42 secondes au total; la médiane par cas est
-6,90 secondes. Ces temps incluent le chargement froid du premier cas et ne
+Les neuf générations ont pris 74,70 secondes au total; la médiane par cas est
+7,75 secondes. Ces temps incluent le chargement froid du premier cas et ne
 sont pas directement comparables au harnais Transformers de MAT-LM.
+
+Une répétition complète a produit les mêmes métriques, statuts, empreintes de
+réponse et scores de contenu pour chacun des neuf cas. Le rapport temporaire de
+répétition a ensuite été supprimé. Des essais de calibration avec les réglages
+Ollama par défaut avaient varié; ils ne constituent pas le résultat publié.
 
 Le score textuel exact de 0/9 pénalise toute paraphrase. Les scores de preuves
 et d'ancres montrent que Qwen a souvent trouvé les bons éléments, mais il n'a
@@ -114,7 +132,7 @@ pas l'intelligence générale des deux modèles.
 Rapports assainis :
 
 - résultat corrigé : `reports/qwen2.5-14b-dev9-cli-v2.json`, SHA-256
-  `93425fce54ef319d53121f9241e55f439a533e1f0d2745ff0534a0f911f92011` ;
+  `d1db81c3c3a7511fd0a8000a9fbf97461746da17f00b51bf9a77acf9a6ccd181` ;
 - première exécution invalidée par le word-wrap :
   `reports/qwen2.5-14b-dev9-cli.json`, SHA-256
   `c1b3e72158a6ba694f11db71ebeeebad508c13f0ecb7f2a8948a0f1aedb5a976`.

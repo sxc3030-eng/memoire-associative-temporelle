@@ -45,11 +45,11 @@ de paramètres, contre 2,538 milliards pour le socle de MAT-LM.
 | Bras | Contrat valide | Preuves exactes | Toutes les ancres | Cible complète exacte |
 |---|---:|---:|---:|---:|
 | Granite 2B vierge | 0/9 | 0/9 | non mesurable | 0/9 |
-| Qwen 14,8B non adapté | 4/9 | 7/9 | 3/9 | 0/9 |
+| Qwen 14,8B non adapté | 5/9 | 7/9 | 3/9 | 0/9 |
 | MAT-LM 2B + LoRA + calculateur | 9/9 | 9/9 | 9/9 | 9/9 |
 
 Qwen a recopié les neuf `request_id`, n'a inventé aucune preuve et atteint un
-rappel moyen de 62,0 % sur les ancres factuelles. Il paraphrase toutefois les
+rappel moyen de 56,5 % sur les ancres factuelles. Il paraphrase toutefois les
 cibles et ne maîtrise pas systématiquement le schéma d'abstention. MAT-LM est
 donc nettement meilleur **sur son protocole spécialisé** malgré un socle près
 de six fois plus petit. Ce résultat ne démontre pas que MAT-LM est meilleur en
@@ -64,6 +64,8 @@ scellé.
 
 Le protocole et les rapports Qwen sont détaillés dans
 [Comparer MAT-LM à Qwen avec Ollama CLI](OLLAMA_CLI_HELDOUT_BENCHMARK.md).
+Le décodage Qwen publié est fixé et sa répétition complète produit les mêmes
+métriques et empreintes par cas.
 
 Rapports publiés :
 

@@ -118,7 +118,7 @@ Le pilote Qwen de neuf cas a été exécuté sans client HTTP par
 [`benchmark_ollama_heldout.py`](../scripts/benchmark_ollama_heldout.py). La
 commande reproductible, la séparation contrat/contenu et les garde-fous sont
 décrits dans [le benchmark Ollama CLI](OLLAMA_CLI_HELDOUT_BENCHMARK.md). Le
-résultat corrigé est 4/9 au contrat, 7/9 aux preuves exactes et 3/9 à toutes
+résultat reproductible est 5/9 au contrat brut, 7/9 aux preuves exactes et 3/9 à toutes
 les ancres, contre 9/9 pour MAT-LM vérifié. Cette comparaison reste un pilote
 dev et non le benchmark scellé.
 

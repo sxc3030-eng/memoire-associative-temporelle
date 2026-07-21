@@ -18,7 +18,7 @@
         "request_id_correct": true
       },
       "contract_valid": false,
-      "elapsed_ms": 15527.231,
+      "elapsed_ms": 15811.069,
       "error": {
         "message": "sortie incompatible avec le contrat JSON",
         "type": "MATLMInferenceError"
@@ -46,9 +46,9 @@
         "request_id_correct": true
       },
       "contract_valid": true,
-      "elapsed_ms": 8929.693,
+      "elapsed_ms": 9463.883,
       "error": null,
-      "prediction_answer_sha256": "5ec1caf1a52c9a877775f4773e9783ebcef87ed00c63c062f4017143f1c6fc80",
+      "prediction_answer_sha256": "5d635db10548796c0c57a9e4d8be14f5e51dd7926d1c9133ecd64a56310ce2c2",
       "status": "ok",
       "target_answer_sha256": "e19ce6e41e0c8f4ddd09f7a72fbc316550d07ea017cd323c9fb89ead8006b80f",
       "task_type": "multi_hop_relation"
@@ -71,9 +71,9 @@
         "request_id_correct": true
       },
       "contract_valid": true,
-      "elapsed_ms": 10446.11,
+      "elapsed_ms": 9264.463,
       "error": null,
-      "prediction_answer_sha256": "539f248c1af59a227ef5fd53c4b61c7ebd3cbea19387e2d7595603ec4f940be5",
+      "prediction_answer_sha256": "eafc008f6c0137a0663201c9cc94cd7ab072ed742f1f9b9b558fe15d313491aa",
       "status": "ok",
       "target_answer_sha256": "93691b8d223e63c1af46f7aa296d556f5a5315978fef5588a0cb98ee45cb6e3b",
       "task_type": "date_age_arithmetic"
@@ -96,7 +96,7 @@
         "request_id_correct": true
       },
       "contract_valid": true,
-      "elapsed_ms": 10140.255,
+      "elapsed_ms": 10046.699,
       "error": null,
       "prediction_answer_sha256": "10b3b69440e4e2a044e17bef920b2b749720e6b1c4711c8a29c65956c3cb3bf4",
       "status": "ok",
@@ -121,12 +121,12 @@
         "request_id_correct": true
       },
       "contract_valid": false,
-      "elapsed_ms": 5867.764,
+      "elapsed_ms": 5936.437,
       "error": {
         "message": "sortie incompatible avec le contrat JSON",
         "type": "MATLMInferenceError"
       },
-      "prediction_answer_sha256": "6d4fe663a11432293d3b8baa8f05542546211d4d4cc551effbaa61feeab036c7",
+      "prediction_answer_sha256": "ef184e9247102afc412e6b58f7081fcbd27aaa220b959665eb4b409d80b99a0a",
       "status": "invalid_contract",
       "target_answer_sha256": "d5c95b2fd7337dcbcac25136b05a578515652b8ba7c74a91ee5f1f526cfc51dc",
       "task_type": "causal_uncertainty"
@@ -135,7 +135,7 @@
       "case_sha256": "cb4b73b89b0e0259e912360863d7152f799b2b165426f2e947ab5c15b90a707e",
       "content_metrics": {
         "abstention_exact": false,
-        "answer_anchor_recall": 0.0,
+        "answer_anchor_recall": 0.666667,
         "answer_anchors_all": false,
         "answer_exact_normalized": false,
         "calculations_exact": true,
@@ -149,12 +149,12 @@
         "request_id_correct": true
       },
       "contract_valid": false,
-      "elapsed_ms": 6753.973,
+      "elapsed_ms": 7748.766,
       "error": {
         "message": "sortie incompatible avec le contrat JSON",
         "type": "MATLMInferenceError"
       },
-      "prediction_answer_sha256": "c330e2a8ee06af65841d6b43b0defd4c511d650e759e356061df17ba980120bd",
+      "prediction_answer_sha256": "65c8aaf04e9dca23259100ca8cfbf5d6c4cec1ead492a013c962d72ebda7338a",
       "status": "invalid_contract",
       "target_answer_sha256": "c85637804bc98d07df32513bd3fef98823c1c5715e39629827c4837ba1969733",
       "task_type": "contradiction_resolution"
@@ -162,7 +162,7 @@
     {
       "case_sha256": "93dfccf22acf1a79eeb222529e0622f31b2eabb757b4d4d1f352488cb5bc5611",
       "content_metrics": {
-        "abstention_exact": false,
+        "abstention_exact": true,
         "answer_anchor_recall": 1.0,
         "answer_anchors_all": true,
         "answer_exact_normalized": false,
@@ -176,14 +176,11 @@
         "invented_evidence_count": 0,
         "request_id_correct": true
       },
-      "contract_valid": false,
-      "elapsed_ms": 6027.917,
-      "error": {
-        "message": "sortie incompatible avec le contrat JSON",
-        "type": "MATLMInferenceError"
-      },
-      "prediction_answer_sha256": "1fdf0006222edafd3927f9c5df42d61a659c785da22d84685b70537884dc2aa8",
-      "status": "invalid_contract",
+      "contract_valid": true,
+      "elapsed_ms": 5907.157,
+      "error": null,
+      "prediction_answer_sha256": "545663ce2be119128762956351a0cd99b6254e617a85927e2a1dd19340e3e891",
+      "status": "ok",
       "target_answer_sha256": "2d13dc78fe0ed1b9b438c65c0cb4873fb4a5590192d5995287654abaa1592226",
       "task_type": "distractor_rejection"
     },
@@ -191,7 +188,7 @@
       "case_sha256": "9bc31f595905764740b8b552e523b9e393d0e60e12c6b374667af739cc238f51",
       "content_metrics": {
         "abstention_exact": false,
-        "answer_anchor_recall": 0.5,
+        "answer_anchor_recall": 0.0,
         "answer_anchors_all": false,
         "answer_exact_normalized": false,
         "calculations_exact": true,
@@ -205,9 +202,9 @@
         "request_id_correct": true
       },
       "contract_valid": true,
-      "elapsed_ms": 6895.982,
+      "elapsed_ms": 5216.38,
       "error": null,
-      "prediction_answer_sha256": "95a4202a22cec981bf235af746a9f30e8be37c7353369b07c86f9dba793324a9",
+      "prediction_answer_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "status": "ok",
       "target_answer_sha256": "fee0aafb95e2fe23af89060a41682155af7f38c6bb73fbbee09bbc816152915d",
       "task_type": "unsupported_abstention"
@@ -216,7 +213,7 @@
       "case_sha256": "4e179761ad58853558c6c3df22f569406f35a49f4578b5695a65a892bd68af22",
       "content_metrics": {
         "abstention_exact": false,
-        "answer_anchor_recall": 0.666667,
+        "answer_anchor_recall": 0.0,
         "answer_anchors_all": false,
         "answer_exact_normalized": false,
         "calculations_exact": true,
@@ -230,18 +227,18 @@
         "request_id_correct": true
       },
       "contract_valid": false,
-      "elapsed_ms": 6646.864,
+      "elapsed_ms": 5217.782,
       "error": {
         "message": "sortie incompatible avec le contrat JSON",
         "type": "MATLMInferenceError"
       },
-      "prediction_answer_sha256": "359eb6dfccbf024ea8e0314a4ed59c3f24d6d4f699151af315f1cde573a68383",
+      "prediction_answer_sha256": "fcae69a5351764951a623e11a5d0c7ff7dddd4a7d04bb93fec3e592d0a941982",
       "status": "invalid_contract",
       "target_answer_sha256": "a3b5b56c48fe5eae6f5775c5f2b87568c9baac6777261397b3dd3bd3c9831b36",
       "task_type": "provenance_selection"
     }
   ],
-  "created_at_utc": "2026-07-21T18:20:36.935987+00:00",
+  "created_at_utc": "2026-07-21T18:41:22.136912+00:00",
   "dataset": {
     "available_count": 270,
     "selected_count": 9,
@@ -271,9 +268,9 @@
       "provenance_selection"
     ]
   },
-  "elapsed_ms": 77420.341,
+  "elapsed_ms": 74697.474,
   "global_metrics": {
-    "abstention_exact": 3,
+    "abstention_exact": 4,
     "answer_anchor_scored": 9,
     "answer_anchors_all": 3,
     "answer_exact_normalized": 0,
@@ -281,21 +278,21 @@
     "calculations_exact": 8,
     "content_all_exact": 0,
     "content_core_exact": 0,
-    "contract_valid": 4,
+    "contract_valid": 5,
     "evidence_ids_exact": 7,
     "evidence_scored": 9,
     "execution_error": 0,
-    "invalid_contract": 5,
+    "invalid_contract": 4,
     "invented_evidence_ids": 0,
     "rates": {
-      "abstention_exact": 0.333333,
-      "answer_anchor_recall_mean": 0.62037,
+      "abstention_exact": 0.444444,
+      "answer_anchor_recall_mean": 0.564815,
       "answer_anchors_all": 0.333333,
       "answer_exact_normalized": 0.0,
       "calculations_exact": 0.888889,
       "content_all_exact": 0.0,
       "content_core_exact": 0.0,
-      "contract_valid": 0.444444,
+      "contract_valid": 0.555556,
       "evidence_f1_mean": 0.851852,
       "evidence_ids_exact": 0.777778,
       "evidence_precision_mean": 0.888889,
@@ -317,7 +314,7 @@
     "answer_exact_normalized": "prose cible exacte apres NFKC, casefold et espaces reduits",
     "content_all_exact": "content_core_exact et calculs exacts",
     "content_core_exact": "prose normalisee, preuves et abstention exactes, meme si le contrat echoue",
-    "contract_valid": "sortie acceptee sans tolerance par memory-native-answer-v1",
+    "contract_valid": "sortie brute acceptee sans reparation par memory-native-answer-v1",
     "invented_evidence_ids": "identifiants cites mais absents de la capsule"
   },
   "metrics_by_task_type": {
@@ -370,7 +367,7 @@
       "invented_evidence_ids": 0,
       "rates": {
         "abstention_exact": 0.0,
-        "answer_anchor_recall_mean": 0.0,
+        "answer_anchor_recall_mean": 0.666667,
         "answer_anchors_all": 0.0,
         "answer_exact_normalized": 0.0,
         "calculations_exact": 1.0,
@@ -450,7 +447,7 @@
       "request_id_correct": 1
     },
     "distractor_rejection": {
-      "abstention_exact": 0,
+      "abstention_exact": 1,
       "answer_anchor_scored": 1,
       "answer_anchors_all": 1,
       "answer_exact_normalized": 0,
@@ -458,21 +455,21 @@
       "calculations_exact": 1,
       "content_all_exact": 0,
       "content_core_exact": 0,
-      "contract_valid": 0,
+      "contract_valid": 1,
       "evidence_ids_exact": 1,
       "evidence_scored": 1,
       "execution_error": 0,
-      "invalid_contract": 1,
+      "invalid_contract": 0,
       "invented_evidence_ids": 0,
       "rates": {
-        "abstention_exact": 0.0,
+        "abstention_exact": 1.0,
         "answer_anchor_recall_mean": 1.0,
         "answer_anchors_all": 1.0,
         "answer_exact_normalized": 0.0,
         "calculations_exact": 1.0,
         "content_all_exact": 0.0,
         "content_core_exact": 0.0,
-        "contract_valid": 0.0,
+        "contract_valid": 1.0,
         "evidence_f1_mean": 1.0,
         "evidence_ids_exact": 1.0,
         "evidence_precision_mean": 1.0,
@@ -530,7 +527,7 @@
       "invented_evidence_ids": 0,
       "rates": {
         "abstention_exact": 0.0,
-        "answer_anchor_recall_mean": 0.666667,
+        "answer_anchor_recall_mean": 0.0,
         "answer_anchors_all": 0.0,
         "answer_exact_normalized": 0.0,
         "calculations_exact": 1.0,
@@ -594,7 +591,7 @@
       "invented_evidence_ids": 0,
       "rates": {
         "abstention_exact": 0.0,
-        "answer_anchor_recall_mean": 0.5,
+        "answer_anchor_recall_mean": 0.0,
         "answer_anchors_all": 0.0,
         "answer_exact_normalized": 0.0,
         "calculations_exact": 1.0,
@@ -612,8 +609,10 @@
   },
   "model": {
     "executable": "ollama.exe",
-    "model_show_sha256": "af8906421cc15670fffad0984c1b2aa42efb711cb17777d512b1885872f30794",
-    "tag": "qwen2.5:14b-instruct-q4_0",
+    "manifest_id": "4f09fde1182e",
+    "manifest_id_verified": true,
+    "model_show_sha256": "70b41a314231feb9bc28c2530b56554549bd02b74d3825a337142508a9a317e8",
+    "tag": "matlm-qwen-benchmark:20260721",
     "version_output_sha256": "1fa2d76ae71020b9b034b451eef2a05d9e2d654631d415c9ab9c57e45dcac4ce"
   },
   "model_release_succeeded": true,
@@ -631,7 +630,7 @@
     "same_selection_as_matlm": true,
     "sequential_cases": true
   },
-  "schema_version": "ollama-cli-heldout-benchmark-v1",
+  "schema_version": "ollama-cli-heldout-benchmark-v2",
   "status": "complete",
   "transport": "ollama-cli-stdin"
 }
