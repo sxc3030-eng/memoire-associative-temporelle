@@ -239,10 +239,10 @@ python scripts/train_matlm.py `
 Le mode réel ne pousse aucun poids vers Internet et charge un seul modèle. La
 procédure, les garde-fous et l'interrogation de l'adaptateur sont décrits dans
 [MAT-LM-2B](docs/MAT_LM_2B.md).
-Le résultat A/B du pilote v0.8 est documenté dans
-[Résultats MAT-LM v0.8](docs/MAT_LM_PILOT_RESULTS.md). La comparaison scellée
-prévue contre le Qwen 14B local, avec séparation mémoire/fine-tuning/taille, est
-définie dans le [protocole MAT-LM](docs/MAT_LM_BENCHMARK_PROTOCOL.md).
+Le résultat A/B du pilote v0.8 et sa première comparaison au Qwen 14,8B local
+sont documentés dans [Résultats MAT-LM v0.8](docs/MAT_LM_PILOT_RESULTS.md).
+La comparaison scellée à venir, avec séparation mémoire/fine-tuning/taille,
+est définie dans le [protocole MAT-LM](docs/MAT_LM_BENCHMARK_PROTOCOL.md).
 
 ### Parler à MAT-LM depuis l'interface locale
 

@@ -94,9 +94,9 @@ contrebalancé entre lots afin de limiter les effets thermiques.
 ### Comparaison au grand modèle local
 
 Le premier témoin de grande taille déjà présent sur la machine est
-`qwen2.5:14b-instruct-q4_0` (empreinte Ollama courte `5449194ff803`, artefact
-local de 8,5 Go). Il ne sera jamais chargé en même temps que Granite. La
-comparaison finale ajoute deux bras aux bras Granite :
+`qwen2.5:14b-instruct-q4_0` (empreinte Ollama courte `5449194ff803`, 14,8
+milliards de paramètres annoncés). Il ne sera jamais chargé en même temps que
+Granite. La comparaison finale ajoute deux bras aux bras Granite :
 
 1. Qwen 14B sans preuve externe ;
 2. Qwen 14B avec exactement la même capsule que MAT-LM.
@@ -113,6 +113,14 @@ et les opérations de lecture; les faits du test restent dans la mémoire
 externe et ne doivent jamais entrer dans l'entraînement. Un second fine-tuning
 n'est justifié que si une famille d'opérations échoue sur le jeu scellé, jamais
 pour mémoriser les réponses de ce jeu.
+
+Le pilote Qwen de neuf cas a été exécuté sans client HTTP par
+[`benchmark_ollama_heldout.py`](../scripts/benchmark_ollama_heldout.py). La
+commande reproductible, la séparation contrat/contenu et les garde-fous sont
+décrits dans [le benchmark Ollama CLI](OLLAMA_CLI_HELDOUT_BENCHMARK.md). Le
+résultat corrigé est 4/9 au contrat, 7/9 aux preuves exactes et 3/9 à toutes
+les ancres, contre 9/9 pour MAT-LM vérifié. Cette comparaison reste un pilote
+dev et non le benchmark scellé.
 
 Avant l'exécution, le protocole gèle les critères suivants : exactitude et
 abstention sur au moins 900 cas scellés, taux d'hallucination, fidélité des

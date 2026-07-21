@@ -12,6 +12,7 @@ from pathlib import Path
 import re
 import threading
 from typing import Any, Iterator, Mapping, Sequence
+import unicodedata
 
 from .matlm_bridge import strict_chat_messages
 from .matlm_calculations import MATLMCalculationError, reexecute_matlm_calculations
@@ -34,6 +35,7 @@ _LOAD_MODES = frozenset({"auto", "qlora-nf4", "bf16"})
 _PACKAGES = ("torch", "transformers", "peft", "accelerate", "bitsandbytes", "safetensors")
 _MAX_CONFIG_BYTES = 1_000_000
 _MAX_GENERATED_CHARACTERS = 65_536
+_REPLACEMENT_CHARACTER = "\ufffd"
 _MODEL_LOCK = threading.Lock()
 
 
@@ -687,6 +689,121 @@ def extract_json_object(text: Any) -> str:
     return stripped[start:end]
 
 
+def _lexical_spans(text: str, *, include_replacement: bool) -> Iterator[tuple[int, int]]:
+    """Repère les mots Unicode sans traiter la ponctuation comme une lettre perdue."""
+
+    def is_lexical(character: str) -> bool:
+        if include_replacement and character == _REPLACEMENT_CHARACTER:
+            return True
+        # Les catégories L/M/N couvrent lettres, accents combinatoires et nombres.
+        return unicodedata.category(character)[:1] in {"L", "M", "N"}
+
+    start: int | None = None
+    for index, character in enumerate(text):
+        if is_lexical(character):
+            if start is None:
+                start = index
+        elif start is not None:
+            yield start, index
+            start = None
+    if start is not None:
+        yield start, len(text)
+
+
+def _evidence_words(capsule: Mapping[str, Any], evidence_ids: Sequence[str]) -> set[str]:
+    cited = set(evidence_ids)
+    words: set[str] = set()
+    for evidence in capsule["evidence"]:
+        if evidence["evidence_id"] not in cited:
+            continue
+        text = evidence["text"]
+        if _REPLACEMENT_CHARACTER in text:
+            # Une preuve elle-même corrompue ne peut jamais servir de dictionnaire.
+            continue
+        for start, end in _lexical_spans(text, include_replacement=False):
+            words.add(text[start:end])
+    return words
+
+
+def _repair_corrupted_word(corrupted: str, evidence_words: set[str]) -> str:
+    repairs: set[str] = set()
+    for candidate in evidence_words:
+        if len(candidate) != len(corrupted):
+            continue
+        if not all(
+            (
+                observed == _REPLACEMENT_CHARACTER
+                and not expected.isascii()
+            )
+            or observed.casefold() == expected.casefold()
+            for observed, expected in zip(corrupted, candidate, strict=True)
+        ):
+            continue
+        # Seuls les emplacements explicitement perdus sont copiés depuis la preuve.
+        repairs.add(
+            "".join(
+                expected if observed == _REPLACEMENT_CHARACTER else observed
+                for observed, expected in zip(corrupted, candidate, strict=True)
+            )
+        )
+    if not repairs:
+        raise MATLMInferenceError(
+            f"caractère de remplacement non ancré dans une preuve citée: {corrupted!r}"
+        )
+    if len(repairs) != 1:
+        raise MATLMInferenceError(
+            f"réparation Unicode ambiguë dans les preuves citées: {corrupted!r}"
+        )
+    return repairs.pop()
+
+
+def _contains_replacement_character(value: Any) -> bool:
+    if isinstance(value, str):
+        return _REPLACEMENT_CHARACTER in value
+    if isinstance(value, list):
+        return any(_contains_replacement_character(item) for item in value)
+    if isinstance(value, dict):
+        return any(
+            _contains_replacement_character(key) or _contains_replacement_character(item)
+            for key, item in value.items()
+        )
+    return False
+
+
+def repair_generated_answer_from_evidence(
+    answer: Mapping[str, Any] | str | bytes,
+    capsule: Mapping[str, Any] | str | bytes,
+) -> dict[str, Any]:
+    """Répare U+FFFD uniquement par correspondance unique avec une preuve citée.
+
+    La réponse est validée avant et après la réparation. Aucun champ structurel,
+    identifiant ou calcul n'est corrigé; un U+FFFD hors du texte de réponse est
+    refusé, car aucune substitution lexicale n'y serait suffisamment sûre.
+    """
+
+    trusted_capsule = validate_capsule(capsule)
+    clean = validate_answer(answer, trusted_capsule)
+    text = clean["answer"]
+    if _REPLACEMENT_CHARACTER in text:
+        words = _evidence_words(trusted_capsule, clean["evidence_ids"])
+        pieces: list[str] = []
+        cursor = 0
+        for start, end in _lexical_spans(text, include_replacement=True):
+            token = text[start:end]
+            if _REPLACEMENT_CHARACTER not in token:
+                continue
+            pieces.append(text[cursor:start])
+            pieces.append(_repair_corrupted_word(token, words))
+            cursor = end
+        pieces.append(text[cursor:])
+        clean["answer"] = "".join(pieces)
+    if _contains_replacement_character(clean):
+        raise MATLMInferenceError(
+            "caractère de remplacement interdit hors d'un mot réparable de $.answer"
+        )
+    return validate_answer(clean, trusted_capsule)
+
+
 def validate_generated_answer(
     generated_text: str,
     capsule: Mapping[str, Any] | str | bytes,
@@ -694,7 +811,9 @@ def validate_generated_answer(
     """Extrait puis valide la réponse; aucune sortie brute n'est retournée."""
 
     try:
-        return validate_answer(extract_json_object(generated_text), capsule)
+        return repair_generated_answer_from_evidence(
+            extract_json_object(generated_text), capsule
+        )
     except ContractValidationError as error:
         raise MATLMInferenceError(f"sortie MAT-LM invalide: {error}") from error
 
@@ -807,6 +926,7 @@ __all__ = [
     "installed_inference_versions",
     "load_capsule_file",
     "pretrained_options",
+    "repair_generated_answer_from_evidence",
     "validate_generated_answer",
     "validate_inference_config",
 ]

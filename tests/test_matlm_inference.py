@@ -275,6 +275,159 @@ class MATLMInferenceTests(unittest.TestCase):
         with self.assertRaisesRegex(MATLMInferenceError, "preuves absentes"):
             validate_generated_answer(json.dumps(invalid), _capsule())
 
+    def test_repairs_replacement_character_from_one_cited_evidence_word(self) -> None:
+        capsule = build_capsule(
+            request_id="infer-unicode-repair",
+            question="Qu'a fait Marie Curie ?",
+            evidence=[
+                {
+                    "evidence_id": "matlm:ev:curie",
+                    "text": "Marie Curie a découvert le radium en 1898.",
+                    "space": "reference",
+                    "status": "verified",
+                    "confidence": 1.0,
+                    "temporal_context": "1898",
+                    "tags": ["science"],
+                }
+            ],
+        )
+        generated = _answer()
+        generated.update(
+            {
+                "request_id": capsule["request_id"],
+                "answer": "Marie Curie a d�couvert le radium en 1898.",
+                "evidence_ids": ["matlm:ev:curie"],
+            }
+        )
+
+        actual = validate_generated_answer(
+            json.dumps(generated, ensure_ascii=False), capsule
+        )
+
+        self.assertEqual(
+            actual["answer"], "Marie Curie a découvert le radium en 1898."
+        )
+        self.assertNotIn("\ufffd", json.dumps(actual, ensure_ascii=False))
+
+    def test_rejects_ambiguous_replacement_character_repair(self) -> None:
+        capsule = build_capsule(
+            request_id="infer-unicode-ambiguous",
+            question="Quel mot ?",
+            evidence=[
+                {
+                    "evidence_id": "matlm:ev:words",
+                    "text": "La côte est distincte de la cöte.",
+                    "space": "reference",
+                    "status": "verified",
+                    "confidence": 1.0,
+                    "temporal_context": None,
+                    "tags": ["lexique"],
+                }
+            ],
+        )
+        generated = _answer()
+        generated.update(
+            {
+                "request_id": capsule["request_id"],
+                "answer": "La c�te.",
+                "evidence_ids": ["matlm:ev:words"],
+            }
+        )
+
+        with self.assertRaisesRegex(MATLMInferenceError, "ambiguë"):
+            validate_generated_answer(json.dumps(generated, ensure_ascii=False), capsule)
+
+    def test_repairs_single_accent_without_copying_ascii_one_letter_words(self) -> None:
+        capsule = build_capsule(
+            request_id="infer-unicode-single-accent",
+            question="Où et quand ?",
+            evidence=[
+                {
+                    "evidence_id": "matlm:ev:fleming",
+                    "text": (
+                        "Alexander Fleming a découvert la pénicilline à l'hôpital "
+                        "St Mary's en 1928 en observant l'effet d'une moisissure."
+                    ),
+                    "space": "reference",
+                    "status": "verified",
+                    "confidence": 1.0,
+                    "temporal_context": "1928",
+                    "tags": ["science"],
+                }
+            ],
+        )
+        generated = _answer()
+        generated.update(
+            {
+                "request_id": capsule["request_id"],
+                "answer": "Fleming l'a découvert en 1928 � l'hôpital St Mary's.",
+                "evidence_ids": ["matlm:ev:fleming"],
+            }
+        )
+
+        actual = validate_generated_answer(
+            json.dumps(generated, ensure_ascii=False), capsule
+        )
+
+        self.assertEqual(
+            actual["answer"],
+            "Fleming l'a découvert en 1928 à l'hôpital St Mary's.",
+        )
+
+    def test_does_not_repair_from_an_uncited_evidence(self) -> None:
+        capsule = build_capsule(
+            request_id="infer-unicode-uncited",
+            question="Quelle année ?",
+            evidence=[
+                {
+                    "evidence_id": "matlm:ev:cited",
+                    "text": "Le nombre indiqué est 1898.",
+                    "space": "reference",
+                    "status": "verified",
+                    "confidence": 1.0,
+                    "temporal_context": "1898",
+                    "tags": ["date"],
+                },
+                {
+                    "evidence_id": "matlm:ev:uncited",
+                    "text": "Une découverte est mentionnée.",
+                    "space": "reference",
+                    "status": "verified",
+                    "confidence": 1.0,
+                    "temporal_context": None,
+                    "tags": ["science"],
+                },
+            ],
+        )
+        generated = _answer()
+        generated.update(
+            {
+                "request_id": capsule["request_id"],
+                "answer": "Une d�couverte est mentionnée.",
+                "evidence_ids": ["matlm:ev:cited"],
+            }
+        )
+
+        with self.assertRaisesRegex(MATLMInferenceError, "non ancré"):
+            validate_generated_answer(json.dumps(generated, ensure_ascii=False), capsule)
+
+    def test_rejects_replacement_character_outside_answer_text(self) -> None:
+        generated = _answer()
+        generated["calculations"] = [
+            {
+                "calculation_id": "calc:model-output",
+                "expression": "1898",
+                "reported_result": "18�8",
+                "unit": None,
+                "evidence_ids": ["matlm:ev:1234"],
+            }
+        ]
+
+        with self.assertRaisesRegex(MATLMInferenceError, "hors d'un mot"):
+            validate_generated_answer(
+                json.dumps(generated, ensure_ascii=False), _capsule()
+            )
+
     def test_session_allows_one_model_and_releases_it_explicitly(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             base, adapter = _assets(Path(directory))
