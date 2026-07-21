@@ -64,6 +64,9 @@ class ServerTests(unittest.TestCase):
         self.assertTrue(health["ok"])
         self.assertIn("Mémoire vivante", interface)
         self.assertIn('data-view="focus"', interface)
+        self.assertIn('<h1 id="matlm-title">Parler à MAT-LM</h1>', interface)
+        self.assertIn('id="view-toggle"', interface)
+        self.assertIn('aria-expanded="false"', interface)
         self.assertIn("/assets/matlm-icon-192.png", interface)
         self.assertIn("/assets/matlm-dashboard-hero.webp", interface)
         self.assertEqual(remembered["intent"], "observe")
@@ -94,6 +97,7 @@ class ServerTests(unittest.TestCase):
             "/assets/matlm-favicon.ico",
             "/assets/matlm-icon-64.png",
             "/assets/matlm-icon-192.png",
+            "/assets/matlm-icon-512.png",
             "/assets/matlm-apple-touch-icon.png",
             "/assets/matlm-dashboard-hero.webp",
         )

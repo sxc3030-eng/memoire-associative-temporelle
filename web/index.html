@@ -7,6 +7,7 @@
   <meta name="theme-color" content="#06122d">
   <link rel="icon" href="/assets/matlm-favicon.ico" sizes="any">
   <link rel="icon" type="image/png" href="/assets/matlm-icon-64.png" sizes="64x64">
+  <link rel="icon" type="image/png" href="/assets/matlm-icon-512.png" sizes="512x512">
   <link rel="apple-touch-icon" href="/assets/matlm-apple-touch-icon.png">
   <title>Mémoire vivante — Agent expérimental</title>
   <style>
@@ -113,7 +114,7 @@
     .brand-kicker {
       display: block;
       margin-bottom: 2px;
-      color: #277b9d;
+      color: #1b5d77;
       font-size: 0.7rem;
       font-weight: 800;
       letter-spacing: 0.13em;
@@ -236,6 +237,12 @@
     }
 
     h1 {
+      max-width: 720px;
+      font-size: clamp(1.65rem, 3vw, 2.5rem);
+      line-height: 1.06;
+    }
+
+    .chat-title {
       max-width: 720px;
       font-size: clamp(1.65rem, 3vw, 2.5rem);
       line-height: 1.06;
@@ -1181,7 +1188,7 @@
       text-shadow: 0 0 18px rgba(57, 200, 255, 0.34);
     }
 
-    .matlm-header h2 {
+    .matlm-header h1 {
       font-size: clamp(1.8rem, 4vw, 3.35rem);
       text-shadow: 0 4px 28px rgba(0, 0, 0, 0.38);
     }
@@ -2210,8 +2217,9 @@
     input:focus-visible,
     textarea:focus-visible,
     summary:focus-visible {
-      outline: 3px solid rgba(217, 137, 67, 0.55);
-      outline-offset: 2px;
+      outline: 3px solid #082f49;
+      outline-offset: 3px;
+      box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.95);
     }
 
     @media (max-width: 940px) {
@@ -2543,7 +2551,7 @@
         </div>
       </div>
       <div class="topbar-actions">
-        <button class="view-toggle" id="view-toggle" type="button" aria-controls="workspace" aria-pressed="false">Ouvrir le laboratoire</button>
+        <button class="view-toggle" id="view-toggle" type="button" aria-controls="workspace" aria-expanded="false">Ouvrir le laboratoire</button>
         <div class="engine-status" id="engine-status" data-state="loading" role="status" aria-live="polite">
           <span class="status-dot" aria-hidden="true"></span>
           <span id="engine-status-text">Connexion au moteur…</span>
@@ -2556,7 +2564,7 @@
         <header class="panel-header">
           <div>
             <p class="eyebrow">Conversation</p>
-            <h1 id="chat-title">Parlez à une mémoire qui apprend.</h1>
+            <h2 class="chat-title" id="chat-title">Parlez à une mémoire qui apprend.</h2>
             <p class="intro">Pour enregistrer un fait, commencez par «&nbsp;Souviens-toi que…&nbsp;». Vous pourrez ensuite rappeler ce souvenir ou interroger les chemins appris.</p>
           </div>
           <button class="icon-button" id="clear-chat" type="button" aria-label="Effacer la conversation" title="Effacer la conversation">
@@ -2664,7 +2672,7 @@
         <header class="matlm-header">
           <div>
             <p class="eyebrow">Petit modèle + grande mémoire</p>
-            <h2 id="matlm-title">Parler à MAT-LM</h2>
+            <h1 id="matlm-title">Parler à MAT-LM</h1>
             <p class="intro">Posez une question comme dans un assistant classique. MAT-LM consulte seulement les souvenirs utiles et montre les sources derrière sa réponse.</p>
           </div>
           <div class="matlm-header-tools">
@@ -3142,7 +3150,7 @@
       function setWorkspaceView(view) {
         const laboratory = view === "laboratory";
         els.workspace.dataset.view = laboratory ? "laboratory" : "focus";
-        els.viewToggle.setAttribute("aria-pressed", String(laboratory));
+        els.viewToggle.setAttribute("aria-expanded", String(laboratory));
         els.viewToggle.textContent = laboratory ? "Revenir à MAT-LM" : "Ouvrir le laboratoire";
       }
 
@@ -5258,7 +5266,7 @@
       els.viewToggle.addEventListener("click", () => {
         const nextView = els.workspace.dataset.view === "focus" ? "laboratory" : "focus";
         setWorkspaceView(nextView);
-        if (nextView === "focus") window.scrollTo({ top: 0, behavior: "smooth" });
+        if (nextView === "focus") window.scrollTo({ top: 0, behavior: "auto" });
       });
       els.pipelineTest.addEventListener("click", testPipeline);
       els.matlmStart.addEventListener("click", startMatlm);
