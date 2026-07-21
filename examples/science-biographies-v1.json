@@ -1,0 +1,495 @@
+{
+  "schema_version": "science-biographies-v1",
+  "sources": [
+    {
+      "id": "src-darwin-timeline",
+      "title": "Darwin's letters: a timeline",
+      "url": "https://www.darwinproject.ac.uk/letters/darwins-letters-timeline.html",
+      "publisher": "Darwin Correspondence Project, University of Cambridge"
+    },
+    {
+      "id": "src-linnean-wallace",
+      "title": "160th anniversary of the Darwin-Wallace presentation",
+      "url": "https://www.linnean.org/news/2018/07/01/1st-july-2018-160th-anniversary-of-the-presentation-of-on-the-tendency-of-species-to-form-varieties",
+      "publisher": "The Linnean Society of London"
+    },
+    {
+      "id": "src-linnean-darwin",
+      "title": "Charles Darwin (1809-82)",
+      "url": "https://www.linnean.org/the-society/history-of-science/charles-darwin",
+      "publisher": "The Linnean Society of London"
+    },
+    {
+      "id": "src-curie-timeline",
+      "title": "Dans le temps",
+      "url": "https://curiotheque.musee.curie.fr/s/fr/page/dans-le-temps",
+      "publisher": "Musée Curie"
+    },
+    {
+      "id": "src-nobel-marie-curie",
+      "title": "Marie Curie - Facts and Nobel Lecture",
+      "url": "https://www.nobelprize.org/prizes/chemistry/1911/marie-curie/lecture/",
+      "publisher": "Nobel Prize Outreach"
+    },
+    {
+      "id": "src-nobel-fleming",
+      "title": "Sir Alexander Fleming - Facts",
+      "url": "https://www.nobelprize.org/prizes/medicine/1945/fleming/facts/",
+      "publisher": "Nobel Prize Outreach"
+    },
+    {
+      "id": "src-nobel-chain",
+      "title": "Ernst B. Chain - Facts",
+      "url": "https://www.nobelprize.org/prizes/medicine/1945/chain/facts/",
+      "publisher": "Nobel Prize Outreach"
+    },
+    {
+      "id": "src-nobel-florey",
+      "title": "Sir Howard Florey - Biographical",
+      "url": "https://www.nobelprize.org/prizes/medicine/1945/florey/biographical/",
+      "publisher": "Nobel Prize Outreach"
+    },
+    {
+      "id": "src-kcl-photo51",
+      "title": "The story behind Photograph 51",
+      "url": "https://www.kcl.ac.uk/the-story-behind-photograph-51",
+      "publisher": "King's College London"
+    },
+    {
+      "id": "src-nobel-dna",
+      "title": "Deciphering life's enigma code",
+      "url": "https://www.nobelprize.org/prizes/medicine/1962/speedread/",
+      "publisher": "Nobel Prize Outreach"
+    },
+    {
+      "id": "src-cern-web35",
+      "title": "A short history of the Web",
+      "url": "https://home.cern/science/computing/the-birth-of-the-web/short-history-web/",
+      "publisher": "CERN"
+    },
+    {
+      "id": "src-cern-open-web",
+      "title": "30 years of a free and open Web",
+      "url": "https://home.cern/30-years-free-and-open-web/",
+      "publisher": "CERN"
+    }
+  ],
+  "entities": [
+    {"id": "charles-darwin", "type": "person", "name": "Charles Darwin", "dossier": "darwin-wallace"},
+    {"id": "alfred-russel-wallace", "type": "person", "name": "Alfred Russel Wallace", "dossier": "darwin-wallace"},
+    {"id": "marie-curie", "type": "person", "name": "Marie Skłodowska Curie", "dossier": "curie-polonium-radium"},
+    {"id": "pierre-curie", "type": "person", "name": "Pierre Curie", "dossier": "curie-polonium-radium"},
+    {"id": "andre-debierne", "type": "person", "name": "André-Louis Debierne", "dossier": "curie-polonium-radium"},
+    {"id": "polonium", "type": "chemical_element", "name": "polonium", "dossier": "curie-polonium-radium"},
+    {"id": "radium", "type": "chemical_element", "name": "radium", "dossier": "curie-polonium-radium"},
+    {"id": "alexander-fleming", "type": "person", "name": "Alexander Fleming", "dossier": "penicillin"},
+    {"id": "ernst-chain", "type": "person", "name": "Ernst Boris Chain", "dossier": "penicillin"},
+    {"id": "howard-florey", "type": "person", "name": "Howard Walter Florey", "dossier": "penicillin"},
+    {"id": "penicillin", "type": "substance", "name": "pénicilline", "dossier": "penicillin"},
+    {"id": "oxford-penicillin-team", "type": "research_team", "name": "équipe d'Oxford sur la pénicilline", "dossier": "penicillin"},
+    {"id": "rosalind-franklin", "type": "person", "name": "Rosalind Franklin", "dossier": "dna-photo51"},
+    {"id": "raymond-gosling", "type": "person", "name": "Raymond Gosling", "dossier": "dna-photo51"},
+    {"id": "james-watson", "type": "person", "name": "James Watson", "dossier": "dna-photo51"},
+    {"id": "francis-crick", "type": "person", "name": "Francis Crick", "dossier": "dna-photo51"},
+    {"id": "maurice-wilkins", "type": "person", "name": "Maurice Wilkins", "dossier": "dna-photo51"},
+    {"id": "photo-51", "type": "x_ray_diffraction_image", "name": "Photograph 51", "dossier": "dna-photo51"},
+    {"id": "tim-berners-lee", "type": "person", "name": "Tim Berners-Lee", "dossier": "world-wide-web"},
+    {"id": "cern", "type": "institution", "name": "CERN", "dossier": "world-wide-web"},
+    {"id": "world-wide-web", "type": "information_system", "name": "World Wide Web", "dossier": "world-wide-web"}
+  ],
+  "claims": [
+    {
+      "id": "claim-darwin-born",
+      "subject": "charles-darwin",
+      "predicate": "born_on",
+      "object": "1809-02-12",
+      "statement_fr": "Charles Darwin est né le 12 février 1809.",
+      "date": {"value": "1809-02-12", "precision": "day"},
+      "source_ids": ["src-darwin-timeline"],
+      "status": "documented"
+    },
+    {
+      "id": "claim-darwin-died",
+      "subject": "charles-darwin",
+      "predicate": "died_on",
+      "object": "1882-04-19",
+      "statement_fr": "Charles Darwin est mort le 19 avril 1882.",
+      "date": {"value": "1882-04-19", "precision": "day"},
+      "source_ids": ["src-darwin-timeline"],
+      "status": "documented"
+    },
+    {
+      "id": "claim-wallace-independent",
+      "subject": "alfred-russel-wallace",
+      "predicate": "developed_independently",
+      "object": "une théorie de la sélection naturelle distincte mais proche de celle de Darwin",
+      "statement_fr": "Alfred Russel Wallace avait formulé indépendamment une hypothèse de sélection naturelle semblable à celle sur laquelle Charles Darwin travaillait.",
+      "date": {"value": "1858", "precision": "year"},
+      "source_ids": ["src-linnean-wallace"],
+      "status": "documented_contribution"
+    },
+    {
+      "id": "claim-joint-reading",
+      "subject": "charles-darwin",
+      "predicate": "work_jointly_read_with",
+      "object": "alfred-russel-wallace",
+      "statement_fr": "Les travaux de Charles Darwin et d'Alfred Russel Wallace sur la sélection naturelle furent présentés ensemble à la Linnean Society le 1 juillet 1858.",
+      "date": {"value": "1858-07-01", "precision": "day"},
+      "source_ids": ["src-linnean-wallace"],
+      "status": "documented_joint_attribution"
+    },
+    {
+      "id": "claim-darwin-absent-reading",
+      "subject": "charles-darwin",
+      "predicate": "was_not_present_at_joint_reading",
+      "object": "Linnean Society meeting",
+      "statement_fr": "Charles Darwin n'était pas présent à la réunion de la Linnean Society où les travaux furent lus le 1 juillet 1858.",
+      "date": {"value": "1858-07-01", "precision": "day"},
+      "source_ids": ["src-linnean-wallace"],
+      "status": "documented_absence"
+    },
+    {
+      "id": "claim-wallace-absent-reading",
+      "subject": "alfred-russel-wallace",
+      "predicate": "was_not_present_at_joint_reading",
+      "object": "Linnean Society meeting",
+      "statement_fr": "Alfred Russel Wallace n'était pas présent à la réunion de la Linnean Society où les travaux furent lus le 1 juillet 1858.",
+      "date": {"value": "1858-07-01", "precision": "day"},
+      "source_ids": ["src-linnean-wallace"],
+      "status": "documented_absence"
+    },
+    {
+      "id": "claim-origin-published",
+      "subject": "charles-darwin",
+      "predicate": "published",
+      "object": "On the Origin of Species",
+      "statement_fr": "Charles Darwin publia On the Origin of Species le 24 novembre 1859.",
+      "date": {"value": "1859-11-24", "precision": "day"},
+      "source_ids": ["src-darwin-timeline", "src-linnean-darwin"],
+      "status": "documented"
+    },
+    {
+      "id": "claim-wallace-publication-link",
+      "subject": "alfred-russel-wallace",
+      "predicate": "possibly_encouraged",
+      "object": "la publication ultérieure de la théorie de Darwin",
+      "statement_fr": "Le dossier relie chronologiquement le texte de Wallace en 1858 à la publication ultérieure de Darwin, mais il n'établit pas une cause unique certaine.",
+      "date": {"value": "1858", "precision": "year"},
+      "source_ids": ["src-linnean-wallace"],
+      "status": "possible_not_established_causality"
+    },
+    {
+      "id": "claim-marie-born",
+      "subject": "marie-curie",
+      "predicate": "born_on",
+      "object": "1867-11-07",
+      "statement_fr": "Marie Skłodowska Curie est née le 7 novembre 1867.",
+      "date": {"value": "1867-11-07", "precision": "day"},
+      "source_ids": ["src-nobel-marie-curie"],
+      "status": "documented"
+    },
+    {
+      "id": "claim-marie-polonium",
+      "subject": "marie-curie",
+      "predicate": "co_discovered",
+      "object": "polonium",
+      "statement_fr": "Marie Curie a codécouvert le polonium avec Pierre Curie; l'annonce date du 18 juillet 1898.",
+      "date": {"value": "1898-07-18", "precision": "day"},
+      "source_ids": ["src-curie-timeline"],
+      "status": "documented_joint_attribution"
+    },
+    {
+      "id": "claim-pierre-polonium",
+      "subject": "pierre-curie",
+      "predicate": "co_discovered",
+      "object": "polonium",
+      "statement_fr": "Pierre Curie a codécouvert le polonium avec Marie Curie; l'annonce date du 18 juillet 1898.",
+      "date": {"value": "1898-07-18", "precision": "day"},
+      "source_ids": ["src-curie-timeline"],
+      "status": "documented_joint_attribution"
+    },
+    {
+      "id": "claim-marie-radium",
+      "subject": "marie-curie",
+      "predicate": "co_discovered",
+      "object": "radium",
+      "statement_fr": "Marie Curie a codécouvert le radium avec Pierre Curie; l'annonce date du 26 décembre 1898.",
+      "date": {"value": "1898-12-26", "precision": "day"},
+      "source_ids": ["src-curie-timeline"],
+      "status": "documented_joint_attribution"
+    },
+    {
+      "id": "claim-pierre-radium",
+      "subject": "pierre-curie",
+      "predicate": "co_discovered",
+      "object": "radium",
+      "statement_fr": "Pierre Curie a codécouvert le radium avec Marie Curie; l'annonce date du 26 décembre 1898.",
+      "date": {"value": "1898-12-26", "precision": "day"},
+      "source_ids": ["src-curie-timeline"],
+      "status": "documented_joint_attribution"
+    },
+    {
+      "id": "claim-marie-isolated-radium",
+      "subject": "marie-curie",
+      "predicate": "produced_as_pure_metal_with",
+      "object": "andre-debierne",
+      "statement_fr": "Marie Curie et André-Louis Debierne ont isolé le radium à l'état métallique en 1910; Marie Curie avait auparavant mené spécialement le travail chimique sur les sels purs de radium.",
+      "date": {"value": "1910", "precision": "year"},
+      "source_ids": ["src-nobel-marie-curie"],
+      "status": "documented_distinct_role"
+    },
+    {
+      "id": "claim-fleming-born",
+      "subject": "alexander-fleming",
+      "predicate": "born_on",
+      "object": "1881-08-06",
+      "statement_fr": "Alexander Fleming est né le 6 août 1881.",
+      "date": {"value": "1881-08-06", "precision": "day"},
+      "source_ids": ["src-nobel-fleming"],
+      "status": "documented"
+    },
+    {
+      "id": "claim-fleming-discovery",
+      "subject": "alexander-fleming",
+      "predicate": "observed_antibacterial_effect_of",
+      "object": "penicillin",
+      "statement_fr": "Alexander Fleming a découvert la pénicilline à l'hôpital St Mary's en 1928 en observant l'effet antibactérien d'une moisissure.",
+      "date": {"value": "1928", "precision": "year"},
+      "source_ids": ["src-nobel-fleming"],
+      "status": "documented_initial_discovery_role"
+    },
+    {
+      "id": "claim-fleming-named",
+      "subject": "alexander-fleming",
+      "predicate": "named",
+      "object": "penicillin",
+      "statement_fr": "Alexander Fleming donna le nom pénicilline à la substance observée dans son travail de 1928.",
+      "date": {"value": "1928", "precision": "year"},
+      "source_ids": ["src-nobel-fleming"],
+      "status": "documented_initial_discovery_role"
+    },
+    {
+      "id": "claim-chain-development",
+      "subject": "ernst-chain",
+      "predicate": "co_led_systematic_production_and_study",
+      "object": "penicillin",
+      "statement_fr": "Au début des années 1940, Ernst Chain, Howard Florey et leurs collègues ont produit systématiquement une forme pure de pénicilline et étudié ses propriétés.",
+      "date": {"value": "1940", "precision": "decade_start_approximate"},
+      "source_ids": ["src-nobel-chain"],
+      "status": "documented_joint_development_role"
+    },
+    {
+      "id": "claim-florey-development",
+      "subject": "howard-florey",
+      "predicate": "co_led_systematic_production_and_study",
+      "object": "penicillin",
+      "statement_fr": "Au début des années 1940, Howard Florey, Ernst Chain et leurs collègues ont produit systématiquement une forme pure de pénicilline et étudié ses propriétés.",
+      "date": {"value": "1939", "precision": "year"},
+      "source_ids": ["src-nobel-florey", "src-nobel-chain"],
+      "status": "documented_joint_development_role"
+    },
+    {
+      "id": "claim-penicillin-scale",
+      "subject": "oxford-penicillin-team",
+      "predicate": "enabled_larger_scale_production_of",
+      "object": "penicillin",
+      "statement_fr": "Les efforts de l'équipe d'Oxford et de ses partenaires ont ensuite permis de produire un médicament à base de pénicilline en plus grandes quantités.",
+      "date": {"value": "1940", "precision": "decade_start_approximate"},
+      "source_ids": ["src-nobel-chain"],
+      "status": "documented_consequence_nonexclusive_team"
+    },
+    {
+      "id": "claim-photo51-franklin",
+      "subject": "rosalind-franklin",
+      "predicate": "co_produced",
+      "object": "photo-51",
+      "statement_fr": "Rosalind Franklin a produit la photographie 51 avec son doctorant Raymond Gosling au King's College London en mai 1952.",
+      "date": {"value": "1952-05", "precision": "month"},
+      "source_ids": ["src-kcl-photo51"],
+      "status": "documented_joint_experimental_role"
+    },
+    {
+      "id": "claim-photo51-gosling",
+      "subject": "raymond-gosling",
+      "predicate": "co_produced",
+      "object": "photo-51",
+      "statement_fr": "Raymond Gosling a produit la photographie 51 avec Rosalind Franklin au King's College London en mai 1952.",
+      "date": {"value": "1952-05", "precision": "month"},
+      "source_ids": ["src-kcl-photo51"],
+      "status": "documented_joint_experimental_role"
+    },
+    {
+      "id": "claim-wilkins-showed-photo",
+      "subject": "maurice-wilkins",
+      "predicate": "showed_photo_51_to",
+      "object": "james-watson",
+      "statement_fr": "Maurice Wilkins montra une copie de la photographie 51 à James Watson en janvier 1953.",
+      "date": {"value": "1953-01", "precision": "month"},
+      "source_ids": ["src-kcl-photo51"],
+      "status": "documented"
+    },
+    {
+      "id": "claim-franklin-unaware",
+      "subject": "rosalind-franklin",
+      "predicate": "was_unaware_of",
+      "object": "la présentation de Photo 51 à James Watson",
+      "statement_fr": "Rosalind Franklin ignorait que la photographie 51 avait été montrée à James Watson.",
+      "date": {"value": "1953-01", "precision": "month"},
+      "source_ids": ["src-kcl-photo51"],
+      "status": "documented"
+    },
+    {
+      "id": "claim-watson-model",
+      "subject": "james-watson",
+      "predicate": "co_built_double_helix_model_with",
+      "object": "francis-crick",
+      "statement_fr": "James Watson et Francis Crick ont construit en 1953 un modèle de la double hélice en interprétant des données expérimentales produites par d'autres scientifiques.",
+      "date": {"value": "1953", "precision": "year"},
+      "source_ids": ["src-kcl-photo51", "src-nobel-dna"],
+      "status": "documented_joint_modeling_role"
+    },
+    {
+      "id": "claim-crick-model",
+      "subject": "francis-crick",
+      "predicate": "co_built_double_helix_model_with",
+      "object": "james-watson",
+      "statement_fr": "Francis Crick et James Watson ont construit en 1953 un modèle de la double hélice; ils n'avaient pas produit les images expérimentales de diffraction des rayons X.",
+      "date": {"value": "1953", "precision": "year"},
+      "source_ids": ["src-kcl-photo51", "src-nobel-dna"],
+      "status": "documented_joint_modeling_role"
+    },
+    {
+      "id": "claim-dna-nonexclusive",
+      "subject": "photo-51",
+      "predicate": "contributed_to",
+      "object": "le modèle de la double hélice avec d'autres données scientifiques",
+      "statement_fr": "La photographie 51 et d'autres données de Rosalind Franklin ont joué un rôle clé, mais non exclusif, dans la construction du modèle de l'ADN.",
+      "date": {"value": "1953", "precision": "year"},
+      "source_ids": ["src-kcl-photo51", "src-nobel-dna"],
+      "status": "documented_key_contribution_not_exclusive_cause"
+    },
+    {
+      "id": "claim-web-proposal",
+      "subject": "tim-berners-lee",
+      "predicate": "wrote_first_web_proposal_at",
+      "object": "cern",
+      "statement_fr": "Tim Berners-Lee a inventé le World Wide Web au CERN et rédigé sa première proposition en mars 1989.",
+      "date": {"value": "1989-03", "precision": "month"},
+      "source_ids": ["src-cern-web35"],
+      "status": "documented_invention_role"
+    },
+    {
+      "id": "claim-web-components",
+      "subject": "tim-berners-lee",
+      "predicate": "implemented_key_components_of",
+      "object": "world-wide-web",
+      "statement_fr": "À la fin de 1990, Tim Berners-Lee avait mis en service au CERN le premier serveur Web et le premier navigateur Web.",
+      "date": {"value": "1990-12", "precision": "month"},
+      "source_ids": ["src-cern-web35"],
+      "status": "documented_implementation_role"
+    },
+    {
+      "id": "claim-cern-public-domain",
+      "subject": "cern",
+      "predicate": "released_software_to_public_domain",
+      "object": "world-wide-web",
+      "statement_fr": "Le 30 avril 1993, le CERN a rendu le code source de WorldWideWeb disponible sans redevance, comme logiciel libre.",
+      "date": {"value": "1993-04-30", "precision": "day"},
+      "source_ids": ["src-cern-open-web"],
+      "status": "documented_institutional_decision"
+    },
+    {
+      "id": "claim-web-release-consequence",
+      "subject": "cern",
+      "predicate": "public_release_encouraged",
+      "object": "l'utilisation et l'amélioration du Web",
+      "statement_fr": "La mise à disposition sans redevance par le CERN a permis au Web de se diffuser et d'être amélioré; cette décision de 1993 est distincte de l'invention par Berners-Lee en 1989.",
+      "date": {"value": "1993-04-30", "precision": "day"},
+      "source_ids": ["src-cern-web35", "src-cern-open-web"],
+      "status": "documented_consequence"
+    }
+  ],
+  "evaluation_questions": [
+    {
+      "id": "eval-darwin-wallace-multibond",
+      "question": "Les travaux de quels naturalistes sur la sélection naturelle furent-ils présentés ensemble à la Linnean Society, et quand ?",
+      "expected_answer_fragments": ["Charles Darwin", "Alfred Russel Wallace", "1858"],
+      "forbidden_answer_fragments": ["Darwin seul", "Wallace seul"],
+      "answer_status": "answerable",
+      "evaluation_kind": "documented_joint_attribution",
+      "supporting_claim_ids": ["claim-wallace-independent", "claim-joint-reading"]
+    },
+    {
+      "id": "eval-darwin-wallace-presence",
+      "question": "Charles Darwin et Alfred Russel Wallace étaient-ils physiquement présents lors de la lecture du 1 juillet 1858 ?",
+      "expected_answer_fragments": ["ni Charles Darwin ni Alfred Russel Wallace", "pas présents"],
+      "forbidden_answer_fragments": ["Darwin était présent", "Wallace était présent", "tous deux présents"],
+      "answer_status": "answerable",
+      "evaluation_kind": "documented_absence",
+      "supporting_claim_ids": ["claim-darwin-absent-reading", "claim-wallace-absent-reading"]
+    },
+    {
+      "id": "eval-curie-age-polonium",
+      "question": "Quel âge Marie Curie avait-elle lors de l'annonce du polonium ?",
+      "expected_answer_fragments": ["30 ans"],
+      "forbidden_answer_fragments": ["31 ans", "âge inconnu"],
+      "answer_status": "answerable",
+      "evaluation_kind": "derived_from_documented_exact_dates",
+      "supporting_claim_ids": ["claim-marie-born", "claim-marie-polonium"]
+    },
+    {
+      "id": "eval-darwin-curie-contemporaries",
+      "question": "Charles Darwin et Marie Curie ont-ils été contemporains ?",
+      "expected_answer_fragments": ["oui", "1867", "1882"],
+      "forbidden_answer_fragments": ["n'ont pas été contemporains", "jamais contemporains"],
+      "answer_status": "answerable",
+      "evaluation_kind": "derived_from_documented_lifespans",
+      "supporting_claim_ids": ["claim-darwin-died", "claim-marie-born"]
+    },
+    {
+      "id": "eval-penicillin-roles",
+      "question": "Distingue les rôles de Fleming, Chain et Florey dans le dossier de la pénicilline.",
+      "expected_answer_fragments": ["Fleming", "1928", "Chain", "Florey", "forme pure", "propriétés"],
+      "forbidden_answer_fragments": ["Fleming a développé seul le médicament", "Chain a découvert seul la pénicilline en 1928"],
+      "answer_status": "answerable",
+      "evaluation_kind": "documented_roles_without_equalizing_attribution",
+      "supporting_claim_ids": ["claim-fleming-discovery", "claim-chain-development", "claim-florey-development", "claim-penicillin-scale"]
+    },
+    {
+      "id": "eval-dna-multibond",
+      "question": "Relie Photo 51 à ses producteurs, à sa transmission à Watson et au modèle de 1953, sans confondre les rôles.",
+      "expected_answer_fragments": ["Rosalind Franklin", "Raymond Gosling", "Maurice Wilkins", "James Watson", "Francis Crick"],
+      "forbidden_answer_fragments": ["Franklin et Watson ont pris Photo 51", "Gosling a construit seul le modèle", "Photo 51 fut l'unique cause"],
+      "answer_status": "answerable",
+      "evaluation_kind": "documented_chain_with_nonexclusive_contribution",
+      "supporting_claim_ids": ["claim-photo51-franklin", "claim-photo51-gosling", "claim-wilkins-showed-photo", "claim-franklin-unaware", "claim-watson-model", "claim-crick-model", "claim-dna-nonexclusive"]
+    },
+    {
+      "id": "eval-wallace-causality-limit",
+      "question": "Peut-on affirmer comme un fait certain que le travail de Wallace a causé la publication de Darwin ?",
+      "expected_answer_fragments": ["non", "possible", "causalité non établie"],
+      "forbidden_answer_fragments": ["causalité prouvée", "Wallace a certainement causé la publication"],
+      "answer_status": "answerable",
+      "evaluation_kind": "qualified_possible_not_documented_as_certain",
+      "supporting_claim_ids": ["claim-wallace-publication-link", "claim-origin-published"]
+    },
+    {
+      "id": "eval-web-timeline",
+      "question": "Reconstitue les étapes documentées du Web entre la proposition de Berners-Lee et la décision du CERN de 1993.",
+      "expected_answer_fragments": ["mars 1989", "1990", "30 avril 1993", "CERN"],
+      "forbidden_answer_fragments": ["Berners-Lee a inventé Internet", "CERN a libéré le Web en 1989"],
+      "answer_status": "answerable",
+      "evaluation_kind": "documented_multistep_timeline",
+      "supporting_claim_ids": ["claim-web-proposal", "claim-web-components", "claim-cern-public-domain", "claim-web-release-consequence"]
+    },
+    {
+      "id": "eval-unknown-wallace-computer",
+      "question": "Quel modèle d'ordinateur personnel Alfred Russel Wallace utilisait-il le 1 juillet 1858 ?",
+      "expected_answer_fragments": [],
+      "forbidden_answer_fragments": ["Macintosh", "IBM PC", "ordinateur portable"],
+      "answer_status": "unanswerable",
+      "evaluation_kind": "correct_abstention_outside_evidence",
+      "supporting_claim_ids": []
+    }
+  ]
+}

@@ -40,17 +40,24 @@ from memory_agent.history_stress_lab import (
     run_history_stress,
 )
 from memory_agent.math_engine import MathEngine, MathEngineError, MathLimits
-from memory_agent.memory import MemoryEngine
+from memory_agent.memory import MemoryEngine, MemoryIdempotencyConflictError
+from memory_agent.memory_hub import MemoryHub, SpacePolicy
 from memory_agent.pipeline import (
     IdempotencyConflictError,
     MemoryPipeline,
     QueueStateError,
+)
+from memory_agent.science_curriculum import (
+    ScienceCurriculumError,
+    import_science_reference,
+    load_science_dataset,
 )
 
 LOGGER = logging.getLogger("memory_agent.server")
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_WEB_ROOT = PROJECT_ROOT / "web"
 DEFAULT_DB_PATH = PROJECT_ROOT / "data" / "memory.sqlite3"
+DEFAULT_SCIENCE_DATASET = PROJECT_ROOT / "examples" / "science-biographies-v1.json"
 
 MAX_BODY_BYTES = 3 * 1024 * 1024
 MAX_CHAT_BODY_BYTES = 16 * 1024
@@ -406,6 +413,8 @@ def _compact_recall_details(results: Any, intent: str = "recall") -> dict[str, A
         traces.append(
             {
                 "episode_id": memory.get("episode_id"),
+                "space": memory.get("space", "personal"),
+                "space_policy": memory.get("space_policy"),
                 "score": memory.get("score"),
                 "path": path[:20],
                 "evidence_ids": _evidence_ids(memory),
@@ -601,6 +610,8 @@ class MemoryHTTPServer(ThreadingHTTPServer):
         web_root: Path = DEFAULT_WEB_ROOT,
         pipeline: MemoryPipeline | None = None,
         math_engine: Any | None = None,
+        reference_engine: MemoryEngine | None = None,
+        science_dataset_path: Path | None = None,
     ) -> None:
         host = str(server_address[0]).strip().casefold()
         if host not in _LOOPBACK_HOSTS:
@@ -616,6 +627,41 @@ class MemoryHTTPServer(ThreadingHTTPServer):
         self.pipeline = pipeline
         self.math_engine = math_engine if math_engine is not None else MathEngine()
         self.engine_lock = threading.RLock()
+        self.reference_engine = reference_engine
+        self.reference_lock = threading.RLock()
+        self.science_dataset_path = (
+            science_dataset_path.expanduser().resolve()
+            if science_dataset_path is not None
+            else None
+        )
+        self.science_import_result: dict[str, Any] | None = None
+        self.science_questions: list[dict[str, str]] = []
+        self.memory_hub: MemoryHub | None = None
+        try:
+            if reference_engine is not None:
+                self.memory_hub = MemoryHub(
+                    {
+                        "personal": engine,
+                        "science-reference": reference_engine,
+                    },
+                    {
+                        "personal": SpacePolicy.private("local-agent"),
+                        "science-reference": SpacePolicy.reference(),
+                    },
+                )
+                if self.science_dataset_path is not None:
+                    self.reload_science_reference()
+            elif self.science_dataset_path is not None:
+                raise ValueError(
+                    "science_dataset_path exige une memoire de reference separee"
+                )
+        except Exception:
+            # A constructor failure must not leave either a listening socket or
+            # the dedicated SQLite connection open.
+            super().server_close()
+            if reference_engine is not None:
+                reference_engine.close()
+            raise
         # Le laboratoire est synchrone pour le MVP. Ce verrou distinct garantit
         # qu'un seul corpus temporaire est actif sans bloquer les autres routes.
         self.history_stress_lock = threading.Lock()
@@ -627,6 +673,74 @@ class MemoryHTTPServer(ThreadingHTTPServer):
         self.conversation_episode_id = str(uuid4())
         self.conversation_episode_events = 0
         self.conversation_lock = threading.Lock()
+
+    def reload_science_reference(self) -> dict[str, Any]:
+        """Validate and idempotently load claims into the read-only space."""
+
+        if self.reference_engine is None or self.science_dataset_path is None:
+            raise RuntimeError("Memoire scientifique de reference non configuree")
+        with self.reference_lock:
+            result = import_science_reference(
+                self.science_dataset_path,
+                self.reference_engine,
+            )
+            dataset = load_science_dataset(self.science_dataset_path)
+            # Only public prompts cross this API boundary. The correction key
+            # and supporting claim identifiers remain in the benchmark file.
+            self.science_questions = [
+                {"id": row["id"], "question": row["question"]}
+                for row in dataset["evaluation_questions"]
+            ]
+            self.science_import_result = result
+            return dict(result)
+
+    def science_reference_status(self) -> dict[str, Any]:
+        if self.reference_engine is None:
+            return {
+                "enabled": False,
+                "ready": False,
+                "policy": "reference",
+                "storage": "separate_sqlite",
+            }
+        with self.reference_lock:
+            stats = self.reference_engine.stats()
+            imported = dict(self.science_import_result or {})
+        return {
+            "enabled": True,
+            "ready": bool(imported),
+            "policy": "reference",
+            "storage": "separate_sqlite",
+            "dataset_schema_version": imported.get("dataset_schema_version"),
+            "claims": imported.get("claims_imported", 0),
+            "dossiers": imported.get("dossiers", 0),
+            "questions_available": len(self.science_questions),
+            "stats": stats,
+        }
+
+    def recall_memories(self, query: str, *, top_k: int = 5) -> list[dict[str, Any]]:
+        """Recall from personal and scientific spaces without joining storage."""
+
+        if self.memory_hub is None:
+            with self.engine_lock:
+                return self.engine.recall(query, top_k=top_k)
+        with self.engine_lock, self.reference_lock:
+            capsule = self.memory_hub.recall_capsule(
+                "local-agent",
+                query,
+                space_names=["personal", "science-reference"],
+                top_k=top_k,
+                character_budget=1_000_000,
+            )
+        return list(capsule["items"][:top_k])
+
+    def server_close(self) -> None:
+        """Close the listener and the server-owned reference connection."""
+
+        try:
+            super().server_close()
+        finally:
+            if self.reference_engine is not None:
+                self.reference_engine.close()
 
     def _reserve_conversation_episode_locked(self) -> str:
         if self.conversation_episode_events >= MAX_CONVERSATION_EPISODE_EVENTS:
@@ -854,6 +968,37 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
                     "engine": "memory",
                     "stats_available": isinstance(stats, dict),
                     "pipeline": pipeline_status,
+                },
+                head_only=head_only,
+            )
+            return
+
+        if path == "/api/science/reference":
+            try:
+                reference = self.server.science_reference_status()
+                self._send_json(
+                    HTTPStatus.OK,
+                    {"ok": True, "reference": reference},
+                    head_only=head_only,
+                )
+            except Exception:
+                LOGGER.exception("Impossible de lire la memoire scientifique")
+                self._send_json(
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                    {"ok": False, "error": "Memoire scientifique indisponible."},
+                    head_only=head_only,
+                )
+            return
+
+        if path == "/api/science/questions":
+            questions = [dict(row) for row in self.server.science_questions]
+            self._send_json(
+                HTTPStatus.OK,
+                {
+                    "ok": True,
+                    "enabled": self.server.reference_engine is not None,
+                    "questions": questions,
+                    "count": len(questions),
                 },
                 head_only=head_only,
             )
@@ -1138,6 +1283,7 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
             "/api/calculate",
             "/api/import",
             "/api/math/catalog/import",
+            "/api/science/reference/import",
             "/api/stress/history/run",
             "/api/pipeline/test",
             "/api/pipeline/test/cleanup",
@@ -1170,6 +1316,9 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/math/catalog/import":
             self._handle_math_catalog_import(payload)
+            return
+        if path == "/api/science/reference/import":
+            self._handle_science_reference_import(payload)
             return
         if path == "/api/pipeline/jobs/status":
             self._handle_pipeline_job_status(payload)
@@ -1655,6 +1804,43 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
             return
         self._send_json(response_status, {"ok": True, "mode": mode, **result})
 
+    def _handle_science_reference_import(self, payload: dict[str, Any]) -> None:
+        if payload:
+            self._error(
+                HTTPStatus.BAD_REQUEST,
+                "L'import scientifique utilise uniquement le corpus local configure.",
+            )
+            return
+        if (
+            self.server.reference_engine is None
+            or self.server.science_dataset_path is None
+        ):
+            self._error(
+                HTTPStatus.CONFLICT,
+                "Memoire scientifique de reference non configuree.",
+            )
+            return
+        try:
+            result = self.server.reload_science_reference()
+            reference = self.server.science_reference_status()
+        except MemoryIdempotencyConflictError as error:
+            self._error(HTTPStatus.CONFLICT, _clean_text(error, 400))
+            return
+        except ScienceCurriculumError as error:
+            self._error(HTTPStatus.BAD_REQUEST, _clean_text(error, 400))
+            return
+        except Exception:
+            LOGGER.exception("Erreur pendant l'import scientifique")
+            self._error(
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                "L'import scientifique a rencontre une erreur.",
+            )
+            return
+        self._send_json(
+            HTTPStatus.OK,
+            {"ok": True, "reference": {**reference, "import": result}},
+        )
+
     def _chat(
         self, message: str, *, request_id: str | None = None
     ) -> dict[str, Any]:
@@ -1756,8 +1942,7 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
             explain_requested = recall_match is not None
         if recall_match:
             query = recall_match.group(1).strip()
-            with self.server.engine_lock:
-                result = self.server.engine.recall(query, top_k=5)
+            result = self.server.recall_memories(query, top_k=5)
             return {
                 "intent": "recall",
                 "reply": _explanation_reply(result) if explain_requested else _memory_reply(result),
@@ -1817,8 +2002,7 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
 
         # Une demande libre est traitee comme un indice de rappel. Aucune sortie
         # du moteur ne sera reinjectee automatiquement comme observation.
-        with self.server.engine_lock:
-            result = self.server.engine.recall(message, top_k=5)
+        result = self.server.recall_memories(message, top_k=5)
         return {
             "intent": "associative_recall",
             "reply": _memory_reply(result, generic=True),
@@ -1899,6 +2083,26 @@ def build_parser() -> argparse.ArgumentParser:
         help="journal SQLite des injections (defaut: injection.sqlite3 pres de --db)",
     )
     parser.add_argument(
+        "--science-reference-db",
+        type=Path,
+        default=None,
+        help=(
+            "base scientifique separee "
+            "(defaut: science-reference.sqlite3 pres de --db)"
+        ),
+    )
+    parser.add_argument(
+        "--science-dataset",
+        type=Path,
+        default=DEFAULT_SCIENCE_DATASET,
+        help=f"corpus scientifique valide (defaut: {DEFAULT_SCIENCE_DATASET})",
+    )
+    parser.add_argument(
+        "--no-science-reference",
+        action="store_true",
+        help="desactive explicitement la memoire scientifique separee",
+    )
+    parser.add_argument(
         "--pipeline-batch-size",
         type=lambda value: _bounded_integer(
             value, name="pipeline-batch-size", minimum=1, maximum=1_000
@@ -1925,8 +2129,10 @@ def main(argv: list[str] | None = None) -> int:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     engine: MemoryEngine | None = None
     pipeline: MemoryPipeline | None = None
+    reference_engine: MemoryEngine | None = None
     server: MemoryHTTPServer | None = None
     try:
+        queue_path: Path | None = None
         if args.async_injection:
             queue_path = (
                 args.queue_db.expanduser().resolve()
@@ -1945,10 +2151,38 @@ def main(argv: list[str] | None = None) -> int:
             engine = pipeline.reader_engine
         else:
             engine = MemoryEngine(db_path)
+
+        science_dataset_path: Path | None = None
+        if not args.no_science_reference:
+            candidate_dataset = args.science_dataset.expanduser().resolve()
+            if candidate_dataset.is_file():
+                reference_path = (
+                    args.science_reference_db.expanduser().resolve()
+                    if args.science_reference_db is not None
+                    else db_path.with_name("science-reference.sqlite3")
+                )
+                forbidden_paths = {db_path}
+                if queue_path is not None:
+                    forbidden_paths.add(queue_path)
+                if reference_path in forbidden_paths:
+                    raise ValueError(
+                        "La memoire scientifique doit etre distincte de la memoire "
+                        "personnelle et de la file d'injection."
+                    )
+                reference_path.parent.mkdir(parents=True, exist_ok=True)
+                reference_engine = MemoryEngine(reference_path)
+                science_dataset_path = candidate_dataset
+            else:
+                LOGGER.warning(
+                    "Corpus scientifique absent; espace de reference desactive: %s",
+                    candidate_dataset,
+                )
         server = MemoryHTTPServer(
             (args.host, args.port),
             engine,
             pipeline=pipeline,
+            reference_engine=reference_engine,
+            science_dataset_path=science_dataset_path,
         )
         host, port = server.server_address[:2]
         display_host = f"[{host}]" if ":" in str(host) else host
@@ -1960,6 +2194,8 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         if server is not None:
             server.server_close()
+        elif reference_engine is not None:
+            reference_engine.close()
         if pipeline is not None:
             pipeline.close()
         elif engine is not None:

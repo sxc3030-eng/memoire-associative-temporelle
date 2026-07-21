@@ -1131,6 +1131,213 @@
       white-space: pre-wrap;
     }
 
+    .science-panel {
+      grid-column: 1 / -1;
+      padding: clamp(22px, 3vw, 34px);
+      scroll-margin-top: 18px;
+    }
+
+    .science-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 22px;
+      margin-bottom: 20px;
+    }
+
+    .science-header .intro {
+      max-width: 780px;
+    }
+
+    .science-ready-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      flex: 0 0 auto;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--ink-soft);
+      background: var(--surface-solid);
+      font-size: 0.75rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .science-ready-pill::before {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #a6aca9;
+      box-shadow: 0 0 0 4px rgba(166, 172, 169, 0.14);
+      content: "";
+    }
+
+    .science-ready-pill[data-state="ready"] {
+      border-color: rgba(31, 107, 85, 0.27);
+      color: var(--green-dark);
+      background: var(--green-pale);
+    }
+
+    .science-ready-pill[data-state="ready"]::before {
+      background: #27966f;
+      box-shadow: 0 0 0 4px rgba(39, 150, 111, 0.14);
+    }
+
+    .science-ready-pill[data-state="waiting"] {
+      border-color: rgba(217, 137, 67, 0.3);
+      color: #76512f;
+      background: var(--amber-pale);
+    }
+
+    .science-ready-pill[data-state="error"] {
+      border-color: rgba(169, 77, 69, 0.28);
+      color: var(--red);
+      background: #fff8f6;
+    }
+
+    .science-layout {
+      display: grid;
+      grid-template-columns: minmax(260px, 0.62fr) minmax(0, 1.38fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .science-summary,
+    .science-challenges {
+      min-width: 0;
+      padding: clamp(17px, 2.4vw, 24px);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--surface-solid);
+    }
+
+    .science-summary h3,
+    .science-challenges h3 {
+      margin: 0 0 6px;
+      font-family: var(--font-display);
+      font-size: 1.05rem;
+    }
+
+    .science-status-text,
+    .science-choice-status {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 0.74rem;
+      line-height: 1.5;
+    }
+
+    .science-status-text[data-state="error"] {
+      color: var(--red);
+    }
+
+    .science-metrics {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .science-metric {
+      min-width: 0;
+      padding: 11px 9px;
+      border: 1px solid rgba(31, 107, 85, 0.18);
+      border-radius: 12px;
+      background: #f4faf6;
+      text-align: center;
+    }
+
+    .science-metric strong,
+    .science-metric span {
+      display: block;
+    }
+
+    .science-metric strong {
+      margin-bottom: 4px;
+      color: var(--green-dark);
+      font-family: var(--font-display);
+      font-size: 1.3rem;
+    }
+
+    .science-metric span {
+      color: var(--ink-soft);
+      font-size: 0.63rem;
+      font-weight: 760;
+      line-height: 1.3;
+    }
+
+    .science-separation-note {
+      margin: 14px 0 0;
+      padding: 9px 10px;
+      border-radius: 10px;
+      color: var(--green-dark);
+      background: var(--green-pale);
+      font-size: 0.69rem;
+      font-weight: 700;
+      line-height: 1.45;
+    }
+
+    .science-question-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .science-question {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      min-height: 58px;
+      padding: 10px 11px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      color: var(--ink);
+      background: #fafaf6;
+      cursor: pointer;
+      text-align: left;
+      font-size: 0.72rem;
+      font-weight: 690;
+      line-height: 1.42;
+      transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+    }
+
+    .science-question:hover {
+      border-color: rgba(31, 107, 85, 0.45);
+      background: #f4faf6;
+      transform: translateY(-1px);
+    }
+
+    .science-question-number {
+      display: grid;
+      width: 23px;
+      height: 23px;
+      flex: 0 0 23px;
+      place-items: center;
+      border-radius: 50%;
+      color: #fff;
+      background: var(--green);
+      font-size: 0.65rem;
+      font-weight: 850;
+    }
+
+    .science-choice-status {
+      min-height: 1.5em;
+      margin-top: 11px;
+    }
+
+    .science-question-empty {
+      grid-column: 1 / -1;
+      padding: 16px;
+      border: 1px dashed var(--line-strong);
+      border-radius: 12px;
+      color: var(--ink-soft);
+      text-align: center;
+      font-size: 0.73rem;
+      line-height: 1.45;
+    }
+
     .stat-card {
       min-height: 91px;
       padding: 13px;
@@ -1685,6 +1892,10 @@
       .math-layout {
         grid-template-columns: 1fr;
       }
+
+      .science-layout {
+        grid-template-columns: 1fr;
+      }
     }
 
     @media (max-width: 1180px) and (min-width: 621px) {
@@ -1747,6 +1958,22 @@
 
       .math-header {
         display: block;
+      }
+
+      .science-panel {
+        padding: 18px 14px;
+      }
+
+      .science-header {
+        display: block;
+      }
+
+      .science-ready-pill {
+        margin-top: 14px;
+      }
+
+      .science-question-list {
+        grid-template-columns: 1fr;
       }
 
       .math-memory-note {
@@ -1997,6 +2224,39 @@
           </div>
         </div>
       </aside>
+
+      <section class="panel science-panel" id="science-panel" aria-labelledby="science-title">
+        <header class="science-header">
+          <div>
+            <p class="eyebrow">Mémoire de référence séparée</p>
+            <h2 id="science-title">Sciences et biographies</h2>
+            <p class="intro">Des faits vérifiés servent de repères à la mémoire. Choisissez une question pour la placer dans la conversation et voir si l’agent relie les personnes, les découvertes, les dates et leurs conséquences.</p>
+          </div>
+          <span class="science-ready-pill" id="science-ready-pill" data-state="loading" role="status" aria-live="polite">Vérification…</span>
+        </header>
+
+        <div class="science-layout">
+          <section class="science-summary" aria-labelledby="science-summary-title">
+            <h3 id="science-summary-title">Ce que la mémoire peut consulter</h3>
+            <p class="science-status-text" id="science-status-text" aria-live="polite">Connexion à la mémoire scientifique…</p>
+            <div class="science-metrics" id="science-metrics" aria-label="Contenu de la mémoire scientifique" aria-busy="true">
+              <div class="science-metric"><strong id="science-claims">—</strong><span>faits vérifiés</span></div>
+              <div class="science-metric"><strong id="science-dossiers">—</strong><span>dossiers reliés</span></div>
+              <div class="science-metric"><strong id="science-question-count">—</strong><span>questions d’épreuve</span></div>
+            </div>
+            <p class="science-separation-note">Cette référence reste séparée de vos souvenirs personnels. Les questions et leurs réponses ne sont pas apprises automatiquement.</p>
+          </section>
+
+          <section class="science-challenges" aria-labelledby="science-challenges-title">
+            <h3 id="science-challenges-title">Mettre la mémoire à l’épreuve</h3>
+            <p class="science-status-text">Cliquez sur une question. Elle sera préparée dans la conversation, sans révéler la réponse attendue.</p>
+            <div class="science-question-list" id="science-question-list" aria-live="polite" aria-busy="true">
+              <div class="science-question-empty">Chargement des neuf questions…</div>
+            </div>
+            <p class="science-choice-status" id="science-choice-status" role="status" aria-live="polite"></p>
+          </section>
+        </div>
+      </section>
 
       <section class="panel math-panel" aria-labelledby="math-title">
         <header class="math-header">
@@ -2264,7 +2524,16 @@
         historyResultSummary: document.getElementById("history-result-summary"),
         historyMetrics: document.getElementById("history-metrics"),
         historyDetails: document.getElementById("history-details"),
-        historyReport: document.getElementById("history-report")
+        historyReport: document.getElementById("history-report"),
+        sciencePanel: document.getElementById("science-panel"),
+        scienceReadyPill: document.getElementById("science-ready-pill"),
+        scienceStatusText: document.getElementById("science-status-text"),
+        scienceMetrics: document.getElementById("science-metrics"),
+        scienceClaims: document.getElementById("science-claims"),
+        scienceDossiers: document.getElementById("science-dossiers"),
+        scienceQuestionCount: document.getElementById("science-question-count"),
+        scienceQuestionList: document.getElementById("science-question-list"),
+        scienceChoiceStatus: document.getElementById("science-choice-status")
       };
 
       const importStages = {
@@ -2898,6 +3167,140 @@
           els.historyCount.disabled = false;
           els.historySeed.disabled = false;
           els.historyRun.textContent = "Lancer le test isolé";
+        }
+      }
+
+      function scienceCount(sources, keys) {
+        for (const source of sources) {
+          if (!source || typeof source !== "object") continue;
+          for (const key of keys) {
+            const value = source[key];
+            if (Array.isArray(value)) return value.length;
+            const count = numericCount(value);
+            if (count !== null) return count;
+          }
+        }
+        return null;
+      }
+
+      function showScienceMetric(element, value) {
+        element.textContent = value === null ? "—" : formatNumber(value);
+      }
+
+      function renderScienceReference(payload) {
+        const reference = payload?.reference && typeof payload.reference === "object"
+          ? payload.reference
+          : (payload && typeof payload === "object" ? payload : {});
+        const stats = reference.stats && typeof reference.stats === "object" ? reference.stats : {};
+        const enabled = reference.enabled !== false;
+        const ready = enabled && reference.ready === true;
+        const claims = scienceCount([reference, stats], ["claims", "claim_count", "claims_count"]);
+        const dossiers = scienceCount([reference, stats], ["dossiers", "dossier_count", "dossiers_count"]);
+        const questions = scienceCount(
+          [reference, stats],
+          ["questions_available", "question_count", "questions_count", "questions"]
+        );
+
+        showScienceMetric(els.scienceClaims, claims);
+        showScienceMetric(els.scienceDossiers, dossiers);
+        showScienceMetric(els.scienceQuestionCount, questions);
+        els.scienceMetrics.setAttribute("aria-busy", "false");
+
+        if (ready) {
+          els.scienceReadyPill.dataset.state = "ready";
+          els.scienceReadyPill.textContent = "Référence prête";
+          els.scienceStatusText.dataset.state = "ready";
+          els.scienceStatusText.textContent = "La mémoire scientifique séparée est chargée et peut être consultée par l’agent.";
+        } else if (!enabled) {
+          els.scienceReadyPill.dataset.state = "waiting";
+          els.scienceReadyPill.textContent = "Référence désactivée";
+          els.scienceStatusText.dataset.state = "waiting";
+          els.scienceStatusText.textContent = "La référence existe, mais elle n’est pas activée pour cette session.";
+        } else {
+          els.scienceReadyPill.dataset.state = "waiting";
+          els.scienceReadyPill.textContent = "Préparation en cours";
+          els.scienceStatusText.dataset.state = "waiting";
+          els.scienceStatusText.textContent = "La mémoire scientifique est encore en préparation. Actualisez la page dans un moment.";
+        }
+      }
+
+      function stageScienceQuestion(question) {
+        const text = String(question || "").trim();
+        if (!text) return;
+        els.input.value = text;
+        autoResizeInput();
+        els.scienceChoiceStatus.textContent = "Question placée dans la conversation. Appuyez sur « Envoyer » pour interroger l’agent.";
+        const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+        els.form.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
+        window.setTimeout(() => els.input.focus(), reducedMotion ? 0 : 260);
+      }
+
+      function renderScienceQuestions(payload) {
+        const rawQuestions = Array.isArray(payload?.questions)
+          ? payload.questions
+          : (Array.isArray(payload) ? payload : []);
+        const questions = rawQuestions
+          .map(item => typeof item === "string" ? item : item?.question)
+          .filter(question => typeof question === "string" && question.trim())
+          .slice(0, 9);
+
+        els.scienceQuestionList.replaceChildren();
+        els.scienceQuestionList.setAttribute("aria-busy", "false");
+        if (!questions.length) {
+          const empty = document.createElement("div");
+          empty.className = "science-question-empty";
+          empty.textContent = "Les questions seront disponibles lorsque la référence scientifique sera prête.";
+          els.scienceQuestionList.appendChild(empty);
+          return;
+        }
+
+        questions.forEach((question, index) => {
+          const button = document.createElement("button");
+          button.className = "science-question";
+          button.type = "button";
+          button.setAttribute("aria-label", `Préparer la question ${index + 1} : ${question}`);
+
+          const number = document.createElement("span");
+          number.className = "science-question-number";
+          number.setAttribute("aria-hidden", "true");
+          number.textContent = String(index + 1);
+
+          const label = document.createElement("span");
+          label.textContent = question;
+          button.append(number, label);
+          button.addEventListener("click", () => stageScienceQuestion(question));
+          els.scienceQuestionList.appendChild(button);
+        });
+
+        const advertisedCount = numericCount(payload?.count);
+        showScienceMetric(els.scienceQuestionCount, advertisedCount ?? questions.length);
+      }
+
+      async function loadScienceReference() {
+        const [referenceResult, questionsResult] = await Promise.allSettled([
+          apiFetch("/api/science/reference", { timeoutMs: 10000 }),
+          apiFetch("/api/science/questions", { timeoutMs: 10000 })
+        ]);
+
+        if (referenceResult.status === "fulfilled") {
+          renderScienceReference(referenceResult.value);
+        } else {
+          els.scienceReadyPill.dataset.state = "error";
+          els.scienceReadyPill.textContent = "Référence indisponible";
+          els.scienceStatusText.dataset.state = "error";
+          els.scienceStatusText.textContent = "La mémoire scientifique répondra après le redémarrage de cette version du moteur.";
+          els.scienceMetrics.setAttribute("aria-busy", "false");
+        }
+
+        if (questionsResult.status === "fulfilled") {
+          renderScienceQuestions(questionsResult.value);
+        } else {
+          els.scienceQuestionList.replaceChildren();
+          els.scienceQuestionList.setAttribute("aria-busy", "false");
+          const empty = document.createElement("div");
+          empty.className = "science-question-empty";
+          empty.textContent = "Impossible de charger les questions pour le moment.";
+          els.scienceQuestionList.appendChild(empty);
         }
       }
 
@@ -4057,7 +4460,10 @@
         els.input.focus();
       });
 
-      els.refresh.addEventListener("click", () => refreshMemory(false));
+      els.refresh.addEventListener("click", () => {
+        void refreshMemory(false);
+        void loadScienceReference();
+      });
       els.pipelineTest.addEventListener("click", testPipeline);
       els.mathForm.addEventListener("submit", calculateMath);
       els.mathCatalogSearch.addEventListener("input", renderMathCatalog);
@@ -4138,6 +4544,7 @@
       void refreshPipeline(false);
       void loadMathCatalog();
       void loadHistoryCatalog();
+      void loadScienceReference();
     })();
   </script>
 </body>

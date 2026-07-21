@@ -1,0 +1,125 @@
+{
+  "backend": "ollama",
+  "generated_at": "2026-07-21T13:27:54.933234+00:00",
+  "models": [
+    {
+      "delta": {
+        "accuracy_points": 0.0,
+        "hallucination_points": 0.0,
+        "mean_latency_ms": -1368.31
+      },
+      "metrics": {
+        "baseline": {
+          "abstention_percent": 0.0,
+          "accuracy_percent": 0.0,
+          "completed": 1,
+          "errors": 0,
+          "hallucination_percent": 0.0,
+          "latency": {
+            "count": 1,
+            "max_ms": 2575.605,
+            "mean_ms": 2575.605,
+            "p50_ms": 2575.605,
+            "p95_ms": 2575.605
+          },
+          "total": 1
+        },
+        "memory": {
+          "abstention_percent": 0.0,
+          "accuracy_percent": 0.0,
+          "completed": 1,
+          "errors": 0,
+          "hallucination_percent": 0.0,
+          "latency": {
+            "count": 1,
+            "max_ms": 1207.295,
+            "mean_ms": 1207.295,
+            "p50_ms": 1207.295,
+            "p95_ms": 1207.295
+          },
+          "total": 1
+        }
+      },
+      "model": {
+        "backend": "ollama",
+        "details": {
+          "families": [
+            "llama"
+          ],
+          "family": "llama",
+          "format": "gguf",
+          "parameter_size": "1B",
+          "quantization_level": "Q4_0"
+        },
+        "digest": "3ddd2d3fc8d2b5fe039d18f859271132fd9c7960ef0be1864984442dc2a915d3",
+        "kind": "text",
+        "model_id": "deepseek-coder:1.3b",
+        "size_bytes": 776080839,
+        "tags": [
+          "deepseek-coder:1.3b",
+          "deepseek-coder:latest"
+        ]
+      },
+      "release": {
+        "error": null,
+        "status": "released"
+      },
+      "results": [
+        {
+          "abstained": false,
+          "answer": "I'm sorry for any confusion, but as an AI specializing in English language and literature, I don't have specific information about the works of naturalists or their contributions to societies like La Lune. My main function is to provide assistance with questions related to computer science topics such as programming languages, algorithms, data structures etc. If you need help on these subjects please feel free to ask!\n",
+          "answer_status": "answerable",
+          "capsule_bytes": 0,
+          "correct": false,
+          "error": null,
+          "expected_fragments_found": [],
+          "forbidden_fragments_found": [],
+          "hallucinated": false,
+          "latency_ms": 2575.605,
+          "mode": "baseline",
+          "prompt_evidence_characters": 0,
+          "question_id": "eval-darwin-wallace-multibond",
+          "status": "ok"
+        },
+        {
+          "abstained": false,
+          "answer": "I'm sorry for any confusion but as an AI model developed by DeepsetAI and trained on a large dataset of textual information from various sources (including Wikipedia), I don't have access to specific databases or the ability to recall past interactions. Therefore, I can only provide general answers based on my training data set which includes many texts about different topics in natural science such as Charles Darwin, Alfred Russel Wallace and others related subjects.\n\nHowever, if you could specify what \"Linnéan Society\" refers to or the specific work that was discussed here (e.g., a particular research paper), I",
+          "answer_status": "answerable",
+          "capsule_bytes": 10000,
+          "correct": false,
+          "error": null,
+          "expected_fragments_found": [
+            "Charles Darwin",
+            "Alfred Russel Wallace"
+          ],
+          "forbidden_fragments_found": [],
+          "hallucinated": false,
+          "latency_ms": 1207.295,
+          "mode": "memory",
+          "prompt_evidence_characters": 4623,
+          "question_id": "eval-darwin-wallace-multibond",
+          "status": "ok"
+        }
+      ]
+    }
+  ],
+  "safety": {
+    "expected_abstention_marker": "JE_NE_SAIS_PAS",
+    "model_execution": "strictly_sequential",
+    "mutating_model_operations": [],
+    "network_scope": "loopback_only",
+    "ollama_context_tokens": 8192,
+    "ollama_keep_alive_during_one_model": "5m",
+    "release_between_ollama_models": true,
+    "temperature": 0
+  },
+  "schema_version": "local-memory-benchmark-v1",
+  "summary": {
+    "errors": 0,
+    "models": 1,
+    "models_requested": 1,
+    "questions": 1,
+    "requests": 2,
+    "stopped_after_release_error": false
+  }
+}

@@ -1,6 +1,6 @@
 # Plan de création du moteur de mémoire pour agent
 
-Ce plan vise un premier moteur petit, local, persistant et explicable. La v0.3 a séparé l'injection, la consolidation et la lecture; la v0.4 ajoute une calculatrice déterministe et un catalogue de règles importable explicitement; la v0.5 ajoute une vérité historique indépendante et un laboratoire de stress calculable. Le but n'est pas de construire immédiatement une « intelligence complète », mais de tester les hypothèses centrales avec des résultats reproductibles.
+Ce plan vise un premier moteur petit, local, persistant et explicable. La v0.3 a séparé l'injection, la consolidation et la lecture; la v0.4 ajoute une calculatrice déterministe et un catalogue de règles importable explicitement; la v0.5 ajoute une vérité historique indépendante et un laboratoire de stress calculable; la v0.6 ajoute un hub indépendant capable de servir plusieurs IA locales. Le but n'est pas de construire immédiatement une « intelligence complète », mais de tester les hypothèses centrales avec des résultats reproductibles.
 
 ## 1. Résultat attendu du MVP
 
@@ -25,6 +25,10 @@ Ce plan vise un premier moteur petit, local, persistant et explicable. La v0.3 a
 17. calculer les 11 familles historiques autorisées lorsque leurs entrées existent, avec unités et lignage ;
 18. évaluer automatiquement la mémoire dans des bases temporaires sans modifier la mémoire principale ;
 19. séparer le score sémantique des diagnostics de plomberie et ne produire aucun score si le pipeline est incomplet.
+20. isoler physiquement les espaces privés, partagés et de référence de plusieurs agents ;
+21. produire une capsule JSON neutre, déterministe, dédupliquée et bornée ;
+22. refuser qu'une sortie générée se transforme seule en observation fiable ;
+23. comparer chaque empreinte de modèle local avec et sans la même capsule, sans modifier les modèles installés.
 
 ## 2. Périmètre fonctionnel
 
@@ -53,6 +57,11 @@ Ce plan vise un premier moteur petit, local, persistant et explicable. La v0.3 a
 - conservation opaque des mesures à unité inconnue, avec dérivation sautée plutôt que valeur devinée ;
 - scénario de stress isolé avec score sémantique, diagnostic de plomberie, déduplication, latence, débit et stockage ;
 - verrou de score exigeant une file vidée, aucun échec et le compte exact de travaux terminés.
+- Memory Hub multi-IA avec politiques `private`, `shared` et `reference` ;
+- capsules de rappel bornées avec provenance, explication et suppression des doublons ;
+- corpus scientifique tenu séparé de sa grille d'évaluation ;
+- banc Ollama local limité à la boucle locale, exécuté un modèle à la fois et
+  dédupliqué par empreinte.
 
 ### Reporté après validation
 

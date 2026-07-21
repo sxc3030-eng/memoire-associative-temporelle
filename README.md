@@ -2,7 +2,7 @@
 
 > Un moteur expérimental de mémoire épisodique, sémantique et explicable pour agents.
 
-**Statut :** prototype local v0.5 fonctionnel — mémoire asynchrone, calculatrice déterministe et laboratoire historique isolé expérimentaux, sans revendication de résultat scientifique.
+**Statut :** prototype local v0.6 expérimental — mémoire asynchrone, calculatrice déterministe, laboratoire historique isolé et Memory Hub multi-IA, sans revendication de résultat scientifique.
 
 Ce dépôt transforme un croquis initial en une proposition testable : conserver ce qui s'est produit dans l'ordre, consolider les motifs entre plusieurs expériences, puis retrouver ou prolonger une séquence à partir d'indices incomplets.
 
@@ -19,6 +19,8 @@ La mémoire possède deux représentations persistantes complémentaires et une 
 La v0.4 ajoute un composant séparé : une **calculatrice mathématique bornée** exécute les expressions avec un catalogue versionné. Calculer ne crée aucun souvenir; seul l'import explicite des descriptions du catalogue passe par le pipeline de mémoire.
 
 La v0.5 ajoute un **laboratoire historique calculable**. Il génère une chronique fictive dont la vérité est connue, expose un registre fini de 11 familles de dérivations, puis teste la mémoire avec des doublons, contradictions, homonymes et événements reçus hors ordre. Ses bases SQLite sont temporaires et la mémoire principale reste intacte.
+
+La v0.6 ajoute un **Memory Hub indépendant des modèles**. Plusieurs IA locales peuvent consulter les mêmes références à travers une capsule JSON bornée, tout en gardant des espaces privés physiquement séparés. Un banc compare chaque empreinte de modèle avec et sans capsule; il ne télécharge, ne supprime et ne remplace aucun modèle.
 
 ## Essayer le prototype
 
@@ -146,6 +148,55 @@ Oublie <identifiant>
 ```
 
 Le moteur actuel n'est pas un modèle de langage. Il apprend des motifs de mots d'ordre 1 à 3, retrouve des épisodes et montre les preuves utilisées. Une intégration avec un LLM pourra être ajoutée après validation de cette mémoire de base.
+
+### Tester la même mémoire avec plusieurs IA locales
+
+Le hub v0.6 superpose des politiques explicites à des bases `MemoryEngine` séparées :
+
+- `private` : seul le propriétaire lit et écrit ;
+- `shared` : lecteurs et auteurs sont autorisés séparément ;
+- `reference` : lecture partagée, import du corpus hors ligne, aucune écriture par les agents.
+
+Une réponse générée ne peut pas être enregistrée comme observation par le hub. Les sources acceptées pour une écriture fiable restent `observed`, `executed` et `user_confirmed`.
+
+Le corpus initial rassemble des affirmations atomiques sur Darwin et Wallace, les Curie, la pénicilline, la photographie 51 et le Web. Les questions, fragments attendus et fragments interdits restent séparés des faits importés. Pour construire les capsules sans envoyer la grille de correction aux modèles :
+
+Au démarrage, le serveur importe automatiquement les 31 affirmations dans
+`data/science-reference.sqlite3`, physiquement séparé de la mémoire personnelle.
+Le panneau **Sciences et biographies** affiche l'état de cette référence et les
+neuf questions d'épreuve. Les réponses attendues et les identifiants de
+correction ne traversent jamais cette interface.
+
+```text
+GET  /api/science/reference
+GET  /api/science/questions
+POST /api/science/reference/import
+```
+
+```bash
+python scripts/build_science_capsules.py \
+  --dataset examples/science-biographies-v1.json \
+  --output reports/science-capsules-v1.json
+```
+
+Puis, avec Ollama déjà actif sur la boucle locale :
+
+```bash
+python scripts/benchmark_local_models.py \
+  --backend ollama \
+  --model qwen2.5-coder:1.5b-base \
+  --dataset examples/science-biographies-v1.json \
+  --capsules reports/science-capsules-v1.json \
+  --max-models 1 --max-questions 9 \
+  --output reports/local-models-v06.json
+```
+
+Le banc charge une seule empreinte Ollama à la fois, mesure exactitude,
+abstention, hallucinations interdites et latence, puis libère le modèle. Voir
+[Memory Hub multi-IA](docs/MEMORY_HUB_MULTI_IA.md), [Curriculum scientifique et
+biographique](docs/CURRICULUM_SCIENCE_BIOGRAPHIES.md), le [passage de fumée
+Ollama v0.6](docs/BENCHMARK_MULTI_IA_V06.md) et le [défi complet de Qwen 1,5B
+Base](docs/BENCHMARK_QWEN_1_5B_SCIENCE_V06.md).
 
 ### Observer le pipeline v0.3
 
