@@ -1,0 +1,530 @@
+{
+    "arms":  [
+                 {
+                     "arm_error":  null,
+                     "cases":  [
+                                   {
+                                       "elapsed_ms":  8457.066,
+                                       "error":  {
+                                                     "message":  "texte interdit avant l\u0027objet JSON",
+                                                     "type":  "MATLMInferenceError"
+                                                 },
+                                       "example_id":  "synthetic-000000-b6bcec01144f--direct",
+                                       "metrics":  {
+                                                       "abstention_correct":  false,
+                                                       "all_required_exact":  false,
+                                                       "answer_exact_normalized":  false,
+                                                       "calculations_exact":  false,
+                                                       "contract_valid":  false,
+                                                       "evidence_ids_exact":  false,
+                                                       "full_target_exact":  false,
+                                                       "request_id_correct":  false,
+                                                       "schema_version_correct":  false
+                                                   },
+                                       "prediction_answer_sha256":  null,
+                                       "status":  "invalid_output",
+                                       "target_answer_sha256":  "d7b60f6b5ebac6129a11b480dbf2f8e15c692ac1b0768e1d0e5b075a5793979b",
+                                       "task_type":  "direct_recall_with_citations"
+                                   },
+                                   {
+                                       "elapsed_ms":  18441.608,
+                                       "error":  {
+                                                     "message":  "texte interdit avant l\u0027objet JSON",
+                                                     "type":  "MATLMInferenceError"
+                                                 },
+                                       "example_id":  "synthetic-000001-003516a7afa5--multi-hop",
+                                       "metrics":  {
+                                                       "abstention_correct":  false,
+                                                       "all_required_exact":  false,
+                                                       "answer_exact_normalized":  false,
+                                                       "calculations_exact":  false,
+                                                       "contract_valid":  false,
+                                                       "evidence_ids_exact":  false,
+                                                       "full_target_exact":  false,
+                                                       "request_id_correct":  false,
+                                                       "schema_version_correct":  false
+                                                   },
+                                       "prediction_answer_sha256":  null,
+                                       "status":  "invalid_output",
+                                       "target_answer_sha256":  "e19ce6e41e0c8f4ddd09f7a72fbc316550d07ea017cd323c9fb89ead8006b80f",
+                                       "task_type":  "multi_hop_relation"
+                                   },
+                                   {
+                                       "elapsed_ms":  9561.559,
+                                       "error":  {
+                                                     "message":  "texte interdit avant l\u0027objet JSON",
+                                                     "type":  "MATLMInferenceError"
+                                                 },
+                                       "example_id":  "synthetic-000002-bb97cb2491e5--date-age",
+                                       "metrics":  {
+                                                       "abstention_correct":  false,
+                                                       "all_required_exact":  false,
+                                                       "answer_exact_normalized":  false,
+                                                       "calculations_exact":  false,
+                                                       "contract_valid":  false,
+                                                       "evidence_ids_exact":  false,
+                                                       "full_target_exact":  false,
+                                                       "request_id_correct":  false,
+                                                       "schema_version_correct":  false
+                                                   },
+                                       "prediction_answer_sha256":  null,
+                                       "status":  "invalid_output",
+                                       "target_answer_sha256":  "93691b8d223e63c1af46f7aa296d556f5a5315978fef5588a0cb98ee45cb6e3b",
+                                       "task_type":  "date_age_arithmetic"
+                                   },
+                                   {
+                                       "elapsed_ms":  17179.994,
+                                       "error":  {
+                                                     "message":  "texte interdit avant l\u0027objet JSON",
+                                                     "type":  "MATLMInferenceError"
+                                                 },
+                                       "example_id":  "synthetic-000003-c704def80dd5--roles",
+                                       "metrics":  {
+                                                       "abstention_correct":  false,
+                                                       "all_required_exact":  false,
+                                                       "answer_exact_normalized":  false,
+                                                       "calculations_exact":  false,
+                                                       "contract_valid":  false,
+                                                       "evidence_ids_exact":  false,
+                                                       "full_target_exact":  false,
+                                                       "request_id_correct":  false,
+                                                       "schema_version_correct":  false
+                                                   },
+                                       "prediction_answer_sha256":  null,
+                                       "status":  "invalid_output",
+                                       "target_answer_sha256":  "97930c7f84aa1408872e174228caee72fb607f657ced18e4c6c25cb943a2d344",
+                                       "task_type":  "role_distinction"
+                                   },
+                                   {
+                                       "elapsed_ms":  7902.547,
+                                       "error":  {
+                                                     "message":  "texte interdit avant l\u0027objet JSON",
+                                                     "type":  "MATLMInferenceError"
+                                                 },
+                                       "example_id":  "synthetic-000004-74bdda88e56a--causal-limit",
+                                       "metrics":  {
+                                                       "abstention_correct":  false,
+                                                       "all_required_exact":  false,
+                                                       "answer_exact_normalized":  false,
+                                                       "calculations_exact":  false,
+                                                       "contract_valid":  false,
+                                                       "evidence_ids_exact":  false,
+                                                       "full_target_exact":  false,
+                                                       "request_id_correct":  false,
+                                                       "schema_version_correct":  false
+                                                   },
+                                       "prediction_answer_sha256":  null,
+                                       "status":  "invalid_output",
+                                       "target_answer_sha256":  "d5c95b2fd7337dcbcac25136b05a578515652b8ba7c74a91ee5f1f526cfc51dc",
+                                       "task_type":  "causal_uncertainty"
+                                   },
+                                   {
+                                       "elapsed_ms":  12929.31,
+                                       "error":  {
+                                                     "message":  "texte interdit avant l\u0027objet JSON",
+                                                     "type":  "MATLMInferenceError"
+                                                 },
+                                       "example_id":  "synthetic-000005-311f77d93707--contradiction",
+                                       "metrics":  {
+                                                       "abstention_correct":  false,
+                                                       "all_required_exact":  false,
+                                                       "answer_exact_normalized":  false,
+                                                       "calculations_exact":  false,
+                                                       "contract_valid":  false,
+                                                       "evidence_ids_exact":  false,
+                                                       "full_target_exact":  false,
+                                                       "request_id_correct":  false,
+                                                       "schema_version_correct":  false
+                                                   },
+                                       "prediction_answer_sha256":  null,
+                                       "status":  "invalid_output",
+                                       "target_answer_sha256":  "c85637804bc98d07df32513bd3fef98823c1c5715e39629827c4837ba1969733",
+                                       "task_type":  "contradiction_resolution"
+                                   },
+                                   {
+                                       "elapsed_ms":  9173.293,
+                                       "error":  {
+                                                     "message":  "texte interdit avant l\u0027objet JSON",
+                                                     "type":  "MATLMInferenceError"
+                                                 },
+                                       "example_id":  "synthetic-000006-ff2b6b7015a1--distractor",
+                                       "metrics":  {
+                                                       "abstention_correct":  false,
+                                                       "all_required_exact":  false,
+                                                       "answer_exact_normalized":  false,
+                                                       "calculations_exact":  false,
+                                                       "contract_valid":  false,
+                                                       "evidence_ids_exact":  false,
+                                                       "full_target_exact":  false,
+                                                       "request_id_correct":  false,
+                                                       "schema_version_correct":  false
+                                                   },
+                                       "prediction_answer_sha256":  null,
+                                       "status":  "invalid_output",
+                                       "target_answer_sha256":  "2d13dc78fe0ed1b9b438c65c0cb4873fb4a5590192d5995287654abaa1592226",
+                                       "task_type":  "distractor_rejection"
+                                   },
+                                   {
+                                       "elapsed_ms":  7819.905,
+                                       "error":  {
+                                                     "message":  "texte interdit avant l\u0027objet JSON",
+                                                     "type":  "MATLMInferenceError"
+                                                 },
+                                       "example_id":  "synthetic-000007-a82670db04e7--abstention",
+                                       "metrics":  {
+                                                       "abstention_correct":  false,
+                                                       "all_required_exact":  false,
+                                                       "answer_exact_normalized":  false,
+                                                       "calculations_exact":  false,
+                                                       "contract_valid":  false,
+                                                       "evidence_ids_exact":  false,
+                                                       "full_target_exact":  false,
+                                                       "request_id_correct":  false,
+                                                       "schema_version_correct":  false
+                                                   },
+                                       "prediction_answer_sha256":  null,
+                                       "status":  "invalid_output",
+                                       "target_answer_sha256":  "fee0aafb95e2fe23af89060a41682155af7f38c6bb73fbbee09bbc816152915d",
+                                       "task_type":  "unsupported_abstention"
+                                   },
+                                   {
+                                       "elapsed_ms":  9419.578,
+                                       "error":  {
+                                                     "message":  "texte interdit avant l\u0027objet JSON",
+                                                     "type":  "MATLMInferenceError"
+                                                 },
+                                       "example_id":  "synthetic-000008-13cea9a2861d--provenance",
+                                       "metrics":  {
+                                                       "abstention_correct":  false,
+                                                       "all_required_exact":  false,
+                                                       "answer_exact_normalized":  false,
+                                                       "calculations_exact":  false,
+                                                       "contract_valid":  false,
+                                                       "evidence_ids_exact":  false,
+                                                       "full_target_exact":  false,
+                                                       "request_id_correct":  false,
+                                                       "schema_version_correct":  false
+                                                   },
+                                       "prediction_answer_sha256":  null,
+                                       "status":  "invalid_output",
+                                       "target_answer_sha256":  "a3b5b56c48fe5eae6f5775c5f2b87568c9baac6777261397b3dd3bd3c9831b36",
+                                       "task_type":  "provenance_selection"
+                                   }
+                               ],
+                     "effective_load_mode":  "bf16",
+                     "elapsed_ms":  149966.86,
+                     "global_metrics":  {
+                                            "abstention_correct":  0,
+                                            "all_required_exact":  0,
+                                            "answer_exact_normalized":  0,
+                                            "attempted":  9,
+                                            "calculations_exact":  0,
+                                            "contract_valid":  0,
+                                            "evidence_ids_exact":  0,
+                                            "full_target_exact":  0,
+                                            "invalid_output":  9,
+                                            "model_error":  0,
+                                            "rates":  {
+                                                          "abstention_correct":  0.0,
+                                                          "all_required_exact":  0.0,
+                                                          "answer_exact_normalized":  0.0,
+                                                          "calculations_exact":  0.0,
+                                                          "contract_valid":  0.0,
+                                                          "evidence_ids_exact":  0.0,
+                                                          "full_target_exact":  0.0,
+                                                          "request_id_correct":  0.0,
+                                                          "schema_version_correct":  0.0
+                                                      },
+                                            "request_id_correct":  0,
+                                            "schema_version_correct":  0
+                                        },
+                     "metrics_by_task_type":  {
+                                                  "causal_uncertainty":  {
+                                                                             "abstention_correct":  0,
+                                                                             "all_required_exact":  0,
+                                                                             "answer_exact_normalized":  0,
+                                                                             "attempted":  1,
+                                                                             "calculations_exact":  0,
+                                                                             "contract_valid":  0,
+                                                                             "evidence_ids_exact":  0,
+                                                                             "full_target_exact":  0,
+                                                                             "invalid_output":  1,
+                                                                             "model_error":  0,
+                                                                             "rates":  {
+                                                                                           "abstention_correct":  0.0,
+                                                                                           "all_required_exact":  0.0,
+                                                                                           "answer_exact_normalized":  0.0,
+                                                                                           "calculations_exact":  0.0,
+                                                                                           "contract_valid":  0.0,
+                                                                                           "evidence_ids_exact":  0.0,
+                                                                                           "full_target_exact":  0.0,
+                                                                                           "request_id_correct":  0.0,
+                                                                                           "schema_version_correct":  0.0
+                                                                                       },
+                                                                             "request_id_correct":  0,
+                                                                             "schema_version_correct":  0
+                                                                         },
+                                                  "contradiction_resolution":  {
+                                                                                   "abstention_correct":  0,
+                                                                                   "all_required_exact":  0,
+                                                                                   "answer_exact_normalized":  0,
+                                                                                   "attempted":  1,
+                                                                                   "calculations_exact":  0,
+                                                                                   "contract_valid":  0,
+                                                                                   "evidence_ids_exact":  0,
+                                                                                   "full_target_exact":  0,
+                                                                                   "invalid_output":  1,
+                                                                                   "model_error":  0,
+                                                                                   "rates":  {
+                                                                                                 "abstention_correct":  0.0,
+                                                                                                 "all_required_exact":  0.0,
+                                                                                                 "answer_exact_normalized":  0.0,
+                                                                                                 "calculations_exact":  0.0,
+                                                                                                 "contract_valid":  0.0,
+                                                                                                 "evidence_ids_exact":  0.0,
+                                                                                                 "full_target_exact":  0.0,
+                                                                                                 "request_id_correct":  0.0,
+                                                                                                 "schema_version_correct":  0.0
+                                                                                             },
+                                                                                   "request_id_correct":  0,
+                                                                                   "schema_version_correct":  0
+                                                                               },
+                                                  "date_age_arithmetic":  {
+                                                                              "abstention_correct":  0,
+                                                                              "all_required_exact":  0,
+                                                                              "answer_exact_normalized":  0,
+                                                                              "attempted":  1,
+                                                                              "calculations_exact":  0,
+                                                                              "contract_valid":  0,
+                                                                              "evidence_ids_exact":  0,
+                                                                              "full_target_exact":  0,
+                                                                              "invalid_output":  1,
+                                                                              "model_error":  0,
+                                                                              "rates":  {
+                                                                                            "abstention_correct":  0.0,
+                                                                                            "all_required_exact":  0.0,
+                                                                                            "answer_exact_normalized":  0.0,
+                                                                                            "calculations_exact":  0.0,
+                                                                                            "contract_valid":  0.0,
+                                                                                            "evidence_ids_exact":  0.0,
+                                                                                            "full_target_exact":  0.0,
+                                                                                            "request_id_correct":  0.0,
+                                                                                            "schema_version_correct":  0.0
+                                                                                        },
+                                                                              "request_id_correct":  0,
+                                                                              "schema_version_correct":  0
+                                                                          },
+                                                  "direct_recall_with_citations":  {
+                                                                                       "abstention_correct":  0,
+                                                                                       "all_required_exact":  0,
+                                                                                       "answer_exact_normalized":  0,
+                                                                                       "attempted":  1,
+                                                                                       "calculations_exact":  0,
+                                                                                       "contract_valid":  0,
+                                                                                       "evidence_ids_exact":  0,
+                                                                                       "full_target_exact":  0,
+                                                                                       "invalid_output":  1,
+                                                                                       "model_error":  0,
+                                                                                       "rates":  {
+                                                                                                     "abstention_correct":  0.0,
+                                                                                                     "all_required_exact":  0.0,
+                                                                                                     "answer_exact_normalized":  0.0,
+                                                                                                     "calculations_exact":  0.0,
+                                                                                                     "contract_valid":  0.0,
+                                                                                                     "evidence_ids_exact":  0.0,
+                                                                                                     "full_target_exact":  0.0,
+                                                                                                     "request_id_correct":  0.0,
+                                                                                                     "schema_version_correct":  0.0
+                                                                                                 },
+                                                                                       "request_id_correct":  0,
+                                                                                       "schema_version_correct":  0
+                                                                                   },
+                                                  "distractor_rejection":  {
+                                                                               "abstention_correct":  0,
+                                                                               "all_required_exact":  0,
+                                                                               "answer_exact_normalized":  0,
+                                                                               "attempted":  1,
+                                                                               "calculations_exact":  0,
+                                                                               "contract_valid":  0,
+                                                                               "evidence_ids_exact":  0,
+                                                                               "full_target_exact":  0,
+                                                                               "invalid_output":  1,
+                                                                               "model_error":  0,
+                                                                               "rates":  {
+                                                                                             "abstention_correct":  0.0,
+                                                                                             "all_required_exact":  0.0,
+                                                                                             "answer_exact_normalized":  0.0,
+                                                                                             "calculations_exact":  0.0,
+                                                                                             "contract_valid":  0.0,
+                                                                                             "evidence_ids_exact":  0.0,
+                                                                                             "full_target_exact":  0.0,
+                                                                                             "request_id_correct":  0.0,
+                                                                                             "schema_version_correct":  0.0
+                                                                                         },
+                                                                               "request_id_correct":  0,
+                                                                               "schema_version_correct":  0
+                                                                           },
+                                                  "multi_hop_relation":  {
+                                                                             "abstention_correct":  0,
+                                                                             "all_required_exact":  0,
+                                                                             "answer_exact_normalized":  0,
+                                                                             "attempted":  1,
+                                                                             "calculations_exact":  0,
+                                                                             "contract_valid":  0,
+                                                                             "evidence_ids_exact":  0,
+                                                                             "full_target_exact":  0,
+                                                                             "invalid_output":  1,
+                                                                             "model_error":  0,
+                                                                             "rates":  {
+                                                                                           "abstention_correct":  0.0,
+                                                                                           "all_required_exact":  0.0,
+                                                                                           "answer_exact_normalized":  0.0,
+                                                                                           "calculations_exact":  0.0,
+                                                                                           "contract_valid":  0.0,
+                                                                                           "evidence_ids_exact":  0.0,
+                                                                                           "full_target_exact":  0.0,
+                                                                                           "request_id_correct":  0.0,
+                                                                                           "schema_version_correct":  0.0
+                                                                                       },
+                                                                             "request_id_correct":  0,
+                                                                             "schema_version_correct":  0
+                                                                         },
+                                                  "provenance_selection":  {
+                                                                               "abstention_correct":  0,
+                                                                               "all_required_exact":  0,
+                                                                               "answer_exact_normalized":  0,
+                                                                               "attempted":  1,
+                                                                               "calculations_exact":  0,
+                                                                               "contract_valid":  0,
+                                                                               "evidence_ids_exact":  0,
+                                                                               "full_target_exact":  0,
+                                                                               "invalid_output":  1,
+                                                                               "model_error":  0,
+                                                                               "rates":  {
+                                                                                             "abstention_correct":  0.0,
+                                                                                             "all_required_exact":  0.0,
+                                                                                             "answer_exact_normalized":  0.0,
+                                                                                             "calculations_exact":  0.0,
+                                                                                             "contract_valid":  0.0,
+                                                                                             "evidence_ids_exact":  0.0,
+                                                                                             "full_target_exact":  0.0,
+                                                                                             "request_id_correct":  0.0,
+                                                                                             "schema_version_correct":  0.0
+                                                                                         },
+                                                                               "request_id_correct":  0,
+                                                                               "schema_version_correct":  0
+                                                                           },
+                                                  "role_distinction":  {
+                                                                           "abstention_correct":  0,
+                                                                           "all_required_exact":  0,
+                                                                           "answer_exact_normalized":  0,
+                                                                           "attempted":  1,
+                                                                           "calculations_exact":  0,
+                                                                           "contract_valid":  0,
+                                                                           "evidence_ids_exact":  0,
+                                                                           "full_target_exact":  0,
+                                                                           "invalid_output":  1,
+                                                                           "model_error":  0,
+                                                                           "rates":  {
+                                                                                         "abstention_correct":  0.0,
+                                                                                         "all_required_exact":  0.0,
+                                                                                         "answer_exact_normalized":  0.0,
+                                                                                         "calculations_exact":  0.0,
+                                                                                         "contract_valid":  0.0,
+                                                                                         "evidence_ids_exact":  0.0,
+                                                                                         "full_target_exact":  0.0,
+                                                                                         "request_id_correct":  0.0,
+                                                                                         "schema_version_correct":  0.0
+                                                                                     },
+                                                                           "request_id_correct":  0,
+                                                                           "schema_version_correct":  0
+                                                                       },
+                                                  "unsupported_abstention":  {
+                                                                                 "abstention_correct":  0,
+                                                                                 "all_required_exact":  0,
+                                                                                 "answer_exact_normalized":  0,
+                                                                                 "attempted":  1,
+                                                                                 "calculations_exact":  0,
+                                                                                 "contract_valid":  0,
+                                                                                 "evidence_ids_exact":  0,
+                                                                                 "full_target_exact":  0,
+                                                                                 "invalid_output":  1,
+                                                                                 "model_error":  0,
+                                                                                 "rates":  {
+                                                                                               "abstention_correct":  0.0,
+                                                                                               "all_required_exact":  0.0,
+                                                                                               "answer_exact_normalized":  0.0,
+                                                                                               "calculations_exact":  0.0,
+                                                                                               "contract_valid":  0.0,
+                                                                                               "evidence_ids_exact":  0.0,
+                                                                                               "full_target_exact":  0.0,
+                                                                                               "request_id_correct":  0.0,
+                                                                                               "schema_version_correct":  0.0
+                                                                                           },
+                                                                                 "request_id_correct":  0,
+                                                                                 "schema_version_correct":  0
+                                                                             }
+                                              },
+                     "model":  {
+                                   "adapter":  null,
+                                   "adapter_enabled":  false,
+                                   "base_model":  "models/granite-3.3-2b-instruct",
+                                   "device":  "xpu:0",
+                                   "requested_load_mode":  "bf16"
+                               },
+                     "name":  "base",
+                     "session_open_count":  1,
+                     "status":  "complete_with_failures"
+                 }
+             ],
+    "created_at_utc":  "2026-07-21T17:14:29.649214+00:00",
+    "dataset":  {
+                    "available_count":  270,
+                    "path":  "training-data/matlm-dev-v8.jsonl",
+                    "selected_count":  9,
+                    "selection_method":  "deterministic-balanced-prefix-v1",
+                    "selection_sha256":  "c884894291473583d82beaf8bd9d253d2c24ccded1f208ddfad33993e37c5d10",
+                    "sha256":  "aa2d116ecce079e9a9e33e2df18d9bfdf8e30b3084116346fafc0a711e389a63",
+                    "task_type_counts":  {
+                                             "causal_uncertainty":  1,
+                                             "contradiction_resolution":  1,
+                                             "date_age_arithmetic":  1,
+                                             "direct_recall_with_citations":  1,
+                                             "distractor_rejection":  1,
+                                             "multi_hop_relation":  1,
+                                             "provenance_selection":  1,
+                                             "role_distinction":  1,
+                                             "unsupported_abstention":  1
+                                         },
+                    "task_type_order":  [
+                                            "direct_recall_with_citations",
+                                            "multi_hop_relation",
+                                            "date_age_arithmetic",
+                                            "role_distinction",
+                                            "causal_uncertainty",
+                                            "contradiction_resolution",
+                                            "distractor_rejection",
+                                            "unsupported_abstention",
+                                            "provenance_selection"
+                                        ]
+                },
+    "elapsed_ms":  149966.928,
+    "metric_definitions":  {
+                               "abstention_correct":  "objet abstention identique Ã  la cible",
+                               "all_required_exact":  "contrat, rÃ©ponse, preuves, abstention, request_id et schÃ©ma corrects",
+                               "answer_exact_normalized":  "Unicode NFKC + casefold + espaces rÃ©duits; ponctuation conservÃ©e",
+                               "evidence_ids_exact":  "liste et ordre identiques Ã  la cible"
+                           },
+    "network":  "offline",
+    "safety":  {
+                   "external_api":  false,
+                   "max_error_characters":  400,
+                   "model_download":  false,
+                   "one_model_loaded_at_a_time":  true,
+                   "one_session_per_arm":  true,
+                   "raw_model_output_stored":  false,
+                   "same_selection_for_every_arm":  true
+               },
+    "schema_version":  "matlm-heldout-benchmark-v1",
+    "status":  "complete"
+}

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "memoire-associative-temporelle"
-version = "0.6.0"
+version = "0.8.0"
 description = "Mémoire associative locale, explicable et indépendante pour plusieurs agents et modèles"
 readme = "README.md"
 requires-python = ">=3.11"

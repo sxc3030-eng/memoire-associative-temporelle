@@ -11,12 +11,17 @@ souvenirs et des continuations deja observes par le moteur.
 from __future__ import annotations
 
 import argparse
+from collections import deque
+from dataclasses import dataclass
 import hashlib
 import json
 import logging
 import mimetypes
+import os
+from queue import Empty, Full, Queue
 import re
 import socket
+import subprocess
 import threading
 import time
 import unicodedata
@@ -40,8 +45,16 @@ from memory_agent.history_stress_lab import (
     run_history_stress,
 )
 from memory_agent.math_engine import MathEngine, MathEngineError, MathLimits
+from memory_agent.matlm_bridge import MATLMBridgeError, recall_native_capsule
+from memory_agent.matlm_protocol import is_interactive_ready_frame
 from memory_agent.memory import MemoryEngine, MemoryIdempotencyConflictError
 from memory_agent.memory_hub import MemoryHub, SpacePolicy
+from memory_agent.native_llm_contract import (
+    ContractValidationError,
+    MAX_CAPSULE_BYTES,
+    validate_answer,
+    validate_capsule,
+)
 from memory_agent.pipeline import (
     IdempotencyConflictError,
     MemoryPipeline,
@@ -58,11 +71,18 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_WEB_ROOT = PROJECT_ROOT / "web"
 DEFAULT_DB_PATH = PROJECT_ROOT / "data" / "memory.sqlite3"
 DEFAULT_SCIENCE_DATASET = PROJECT_ROOT / "examples" / "science-biographies-v1.json"
+DEFAULT_MATLM_ROOT = Path(r"D:\MAT-LM")
+DEFAULT_MATLM_PYTHON = DEFAULT_MATLM_ROOT / ".venv" / "Scripts" / "python.exe"
+DEFAULT_MATLM_MODEL = DEFAULT_MATLM_ROOT / "models" / "granite-3.3-2b-instruct"
+DEFAULT_MATLM_ADAPTER = DEFAULT_MATLM_ROOT / "adapter"
+DEFAULT_MATLM_SCRIPT = PROJECT_ROOT / "scripts" / "ask_matlm.py"
 
 MAX_BODY_BYTES = 3 * 1024 * 1024
 MAX_CHAT_BODY_BYTES = 16 * 1024
+MAX_MATLM_BODY_BYTES = 16 * 1024
 MAX_HISTORY_STRESS_BODY_BYTES = 4 * 1024
 MAX_MESSAGE_CHARS = 4_000
+MAX_MATLM_QUESTION_CHARS = 4_000
 MAX_STATIC_BYTES = 2 * 1024 * 1024
 MAX_MEMORIES = 100
 MAX_PIPELINE_TEST_ITEMS = 250
@@ -115,6 +135,435 @@ _CALCULATE_RE = re.compile(
 )
 
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+
+
+class MATLMWorkerError(RuntimeError):
+    """Le lecteur MAT-LM local n'a pas pu produire une reponse sure."""
+
+
+class MATLMUnavailableError(MATLMWorkerError):
+    """Le worker n'est pas configure ou n'est pas demarre."""
+
+
+class MATLMBusyError(MATLMWorkerError):
+    """Une seule generation MAT-LM peut etre active a la fois."""
+
+
+class MATLMTimeoutError(MATLMWorkerError):
+    """La generation a depasse la borne configuree."""
+
+
+@dataclass(frozen=True, slots=True)
+class MATLMWorkerConfig:
+    """Configuration strictement locale du processus persistant MAT-LM."""
+
+    enabled: bool = False
+    python_path: Path = DEFAULT_MATLM_PYTHON
+    base_model_path: Path = DEFAULT_MATLM_MODEL
+    adapter_path: Path = DEFAULT_MATLM_ADAPTER
+    script_path: Path = DEFAULT_MATLM_SCRIPT
+    load_mode: str = "auto"
+    device_index: int = 0
+    max_input_tokens: int = 4096
+    max_new_tokens: int = 768
+    request_timeout_seconds: float = 180.0
+    stop_timeout_seconds: float = 5.0
+
+    def __post_init__(self) -> None:
+        if self.load_mode not in {"auto", "qlora-nf4", "bf16"}:
+            raise ValueError("mode MAT-LM inconnu")
+        if isinstance(self.device_index, bool) or not 0 <= self.device_index <= 15:
+            raise ValueError("device_index MAT-LM doit etre compris entre 0 et 15")
+        if not 256 <= self.max_input_tokens <= 131_072:
+            raise ValueError("max_input_tokens MAT-LM hors limites")
+        if not 16 <= self.max_new_tokens <= 8_192:
+            raise ValueError("max_new_tokens MAT-LM hors limites")
+        if not 5.0 <= float(self.request_timeout_seconds) <= 600.0:
+            raise ValueError("timeout MAT-LM doit etre compris entre 5 et 600 secondes")
+        if not 0.5 <= float(self.stop_timeout_seconds) <= 30.0:
+            raise ValueError("timeout d'arret MAT-LM hors limites")
+
+
+class MATLMWorker:
+    """Garde un unique ``ask_matlm.py --interactive`` vivant entre les appels.
+
+    Le worker ne transmet jamais ``--allow-model-download``. L'environnement
+    Transformers est force hors ligne et la sortie est revalidee contre la
+    capsule envoyee avant de franchir la route HTTP.
+    """
+
+    def __init__(self, config: MATLMWorkerConfig | None = None) -> None:
+        self.config = config or MATLMWorkerConfig()
+        self._state_lock = threading.RLock()
+        self._request_lock = threading.Lock()
+        self._process: subprocess.Popen[str] | None = None
+        self._responses: Queue[tuple[str, Any]] = Queue(maxsize=4)
+        self._stdout_thread: threading.Thread | None = None
+        self._stderr_thread: threading.Thread | None = None
+        self._stderr_tail: deque[str] = deque(maxlen=12)
+        self._generation = 0
+        self._ready_generation: int | None = None
+        self._state = "stopped" if self.config.enabled else "disabled"
+        self._last_error: str | None = None
+        self._started_at: float | None = None
+        self._completed_requests = 0
+
+    @staticmethod
+    def _clean_error(value: Any, maximum: int = 300) -> str:
+        return " ".join(str(value).split())[:maximum]
+
+    def _configuration_issues(self) -> list[str]:
+        if not self.config.enabled:
+            return []
+        checks = (
+            (self.config.python_path, "interpreteur Python MAT-LM absent", True),
+            (self.config.script_path, "scripts/ask_matlm.py absent", True),
+            (self.config.base_model_path, "modele Granite local absent", False),
+            (self.config.adapter_path, "adaptateur PEFT local absent", False),
+        )
+        issues: list[str] = []
+        for raw_path, message, must_be_file in checks:
+            path = Path(raw_path).expanduser()
+            exists = path.is_file() if must_be_file else path.is_dir()
+            if not exists:
+                issues.append(message)
+        return issues
+
+    def _is_running_locked(self) -> bool:
+        process = self._process
+        return process is not None and process.poll() is None
+
+    def status(self) -> dict[str, Any]:
+        with self._state_lock:
+            running = self._is_running_locked()
+            if self._process is not None and not running and self._state not in {
+                "disabled",
+                "stopped",
+                "error",
+            }:
+                self._state = "error"
+                self._last_error = "Le processus MAT-LM s'est arrete de facon inattendue."
+            issues = self._configuration_issues()
+            return {
+                "enabled": self.config.enabled,
+                "configured": self.config.enabled and not issues,
+                "state": self._state,
+                "running": running,
+                "model_loaded": running and self._ready_generation == self._generation,
+                "offline_only": True,
+                "persistent_process": True,
+                "one_model_at_a_time": True,
+                "automatic_learning": False,
+                "completed_requests": self._completed_requests,
+                "uptime_seconds": (
+                    round(time.monotonic() - self._started_at, 3)
+                    if running and self._started_at is not None
+                    else None
+                ),
+                "configuration_issues": issues,
+                "last_error": self._last_error,
+                "limits": {
+                    "question_characters": MAX_MATLM_QUESTION_CHARS,
+                    "capsule_bytes": MAX_CAPSULE_BYTES,
+                    "request_timeout_seconds": self.config.request_timeout_seconds,
+                },
+                "runtime": {
+                    "load_mode": self.config.load_mode,
+                    "device": f"xpu:{self.config.device_index}",
+                    "base_model": Path(self.config.base_model_path).name,
+                    "adapter": Path(self.config.adapter_path).name,
+                },
+            }
+
+    def _command(self) -> list[str]:
+        return [
+            str(Path(self.config.python_path).expanduser()),
+            "-u",
+            str(Path(self.config.script_path).expanduser()),
+            "--adapter",
+            str(Path(self.config.adapter_path).expanduser()),
+            "--base-model",
+            str(Path(self.config.base_model_path).expanduser()),
+            "--load-mode",
+            self.config.load_mode,
+            "--device-index",
+            str(self.config.device_index),
+            "--max-input-tokens",
+            str(self.config.max_input_tokens),
+            "--max-new-tokens",
+            str(self.config.max_new_tokens),
+            "--interactive",
+        ]
+
+    def start(self) -> dict[str, Any]:
+        with self._state_lock:
+            if not self.config.enabled:
+                raise MATLMUnavailableError(
+                    "MAT-LM est desactive; redemarrez le serveur avec --enable-matlm."
+                )
+            if self._is_running_locked():
+                return self.status()
+            issues = self._configuration_issues()
+            if issues:
+                self._state = "error"
+                self._last_error = "; ".join(issues)
+                raise MATLMUnavailableError(self._last_error)
+
+            environment = os.environ.copy()
+            environment["HF_HUB_OFFLINE"] = "1"
+            environment["TRANSFORMERS_OFFLINE"] = "1"
+            environment["PYTHONUNBUFFERED"] = "1"
+            creation_flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+            try:
+                process = subprocess.Popen(
+                    self._command(),
+                    cwd=str(PROJECT_ROOT),
+                    env=environment,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    bufsize=1,
+                    shell=False,
+                    creationflags=creation_flags,
+                )
+            except OSError as error:
+                self._state = "error"
+                self._last_error = "Impossible de demarrer le processus MAT-LM local."
+                raise MATLMUnavailableError(self._last_error) from error
+
+            self._process = process
+            self._responses = Queue(maxsize=4)
+            self._stderr_tail.clear()
+            self._generation += 1
+            generation = self._generation
+            self._ready_generation = None
+            self._state = "starting"
+            self._last_error = None
+            self._started_at = time.monotonic()
+            self._stdout_thread = threading.Thread(
+                target=self._read_stdout,
+                args=(process, generation, self._responses),
+                name="matlm-stdout",
+                daemon=True,
+            )
+            self._stderr_thread = threading.Thread(
+                target=self._read_stderr,
+                args=(process, generation),
+                name="matlm-stderr",
+                daemon=True,
+            )
+            self._stdout_thread.start()
+            self._stderr_thread.start()
+            return self.status()
+
+    def _read_stdout(
+        self,
+        process: subprocess.Popen[str],
+        generation: int,
+        responses: Queue[tuple[str, Any]],
+    ) -> None:
+        stream = process.stdout
+        try:
+            if stream is not None:
+                for line in stream:
+                    if not line.strip():
+                        continue
+                    try:
+                        control = json.loads(line)
+                    except (TypeError, json.JSONDecodeError):
+                        control = None
+                    if is_interactive_ready_frame(control):
+                        with self._state_lock:
+                            if self._process is process and self._generation == generation:
+                                if self._state in {"starting", "busy"}:
+                                    self._ready_generation = generation
+                                if self._state == "starting":
+                                    self._state = "ready"
+                                    self._last_error = None
+                        # Une trame de controle ne doit jamais devenir la
+                        # reponse de la prochaine question.
+                        continue
+                    try:
+                        responses.put(("line", line), timeout=1.0)
+                    except Full:
+                        self._mark_failed(
+                            process,
+                            generation,
+                            "MAT-LM a produit trop de reponses inattendues.",
+                        )
+                        return
+        finally:
+            try:
+                responses.put_nowait(("eof", process.poll()))
+            except Full:
+                pass
+            with self._state_lock:
+                if (
+                    self._process is process
+                    and self._generation == generation
+                    and self._state not in {"disabled", "stopped", "error"}
+                ):
+                    self._state = "error"
+                    self._last_error = "Le processus MAT-LM s'est arrete de facon inattendue."
+
+    def _read_stderr(self, process: subprocess.Popen[str], generation: int) -> None:
+        stream = process.stderr
+        if stream is None:
+            return
+        for line in stream:
+            clean = self._clean_error(line, 500)
+            if not clean:
+                continue
+            with self._state_lock:
+                if self._process is process and self._generation == generation:
+                    self._stderr_tail.append(clean)
+
+    def _mark_failed(
+        self,
+        process: subprocess.Popen[str],
+        generation: int,
+        message: str,
+    ) -> None:
+        with self._state_lock:
+            if self._process is process and self._generation == generation:
+                self._state = "error"
+                self._last_error = message
+        if process.poll() is None:
+            process.terminate()
+
+    def _terminate(self, *, error_message: str | None = None) -> None:
+        with self._state_lock:
+            process = self._process
+            stdout_thread = self._stdout_thread
+            stderr_thread = self._stderr_thread
+            if process is None:
+                self._state = "error" if error_message else (
+                    "stopped" if self.config.enabled else "disabled"
+                )
+                self._last_error = error_message
+                self._started_at = None
+                self._ready_generation = None
+                return
+            self._state = "error" if error_message else "stopping"
+            self._last_error = error_message
+
+        try:
+            if process.stdin is not None:
+                process.stdin.close()
+        except OSError:
+            pass
+        try:
+            # La fermeture de stdin laisse ``ask_matlm.py`` sortir de sa boucle
+            # et appeler MATLMInferenceSession.close(), qui libere le modele et
+            # le cache XPU. La terminaison forcee reste bornee en secours.
+            process.wait(timeout=self.config.stop_timeout_seconds)
+        except subprocess.TimeoutExpired:
+            process.terminate()
+            try:
+                process.wait(timeout=self.config.stop_timeout_seconds)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=self.config.stop_timeout_seconds)
+
+        current = threading.current_thread()
+        for thread in (stdout_thread, stderr_thread):
+            if thread is not None and thread is not current:
+                thread.join(timeout=1.0)
+        for stream in (process.stdout, process.stderr):
+            try:
+                if stream is not None:
+                    stream.close()
+            except OSError:
+                pass
+
+        with self._state_lock:
+            if self._process is process:
+                self._process = None
+                self._stdout_thread = None
+                self._stderr_thread = None
+                self._started_at = None
+                self._ready_generation = None
+                self._state = "error" if error_message else (
+                    "stopped" if self.config.enabled else "disabled"
+                )
+                self._last_error = error_message
+
+    def stop(self) -> dict[str, Any]:
+        self._terminate()
+        return self.status()
+
+    def ask(self, capsule: dict[str, Any]) -> dict[str, Any]:
+        trusted_capsule = validate_capsule(capsule)
+        encoded = json.dumps(
+            trusted_capsule,
+            ensure_ascii=False,
+            allow_nan=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        if len(encoded.encode("utf-8")) > MAX_CAPSULE_BYTES:
+            raise MATLMWorkerError("La capsule MAT-LM depasse la limite autorisee.")
+        if not self._request_lock.acquire(blocking=False):
+            raise MATLMBusyError("MAT-LM traite deja une autre question.")
+        try:
+            with self._state_lock:
+                process = self._process
+                if process is None or process.poll() is not None:
+                    raise MATLMUnavailableError(
+                        "MAT-LM n'est pas demarre. Utilisez d'abord le bouton Demarrer."
+                    )
+                if process.stdin is None:
+                    raise MATLMUnavailableError("Entree du processus MAT-LM indisponible.")
+                responses = self._responses
+                self._state = "busy"
+            try:
+                process.stdin.write(encoded + "\n")
+                process.stdin.flush()
+            except (BrokenPipeError, OSError) as error:
+                message = "Le processus MAT-LM ne repond plus."
+                self._terminate(error_message=message)
+                raise MATLMUnavailableError(message) from error
+
+            try:
+                kind, value = responses.get(timeout=self.config.request_timeout_seconds)
+            except Empty as error:
+                message = "MAT-LM a depasse le delai de reponse et a ete arrete."
+                self._terminate(error_message=message)
+                raise MATLMTimeoutError(message) from error
+            if kind == "eof":
+                message = "Le processus MAT-LM s'est arrete avant de repondre."
+                self._terminate(error_message=message)
+                raise MATLMUnavailableError(message)
+
+            try:
+                raw = json.loads(value)
+            except (TypeError, json.JSONDecodeError) as error:
+                message = "MAT-LM a produit une sortie qui n'est pas un objet JSON valide."
+                self._terminate(error_message=message)
+                raise MATLMWorkerError(message) from error
+            if isinstance(raw, dict) and raw.get("ok") is False:
+                child_error = self._clean_error(raw.get("error") or "capsule refusee")
+                message = f"MAT-LM a refuse la requete: {child_error}"
+                self._terminate(error_message=message)
+                raise MATLMWorkerError(message)
+            try:
+                answer = validate_answer(value, trusted_capsule)
+            except ContractValidationError as error:
+                message = "MAT-LM a produit une reponse hors contrat et a ete arrete."
+                self._terminate(error_message=message)
+                raise MATLMWorkerError(message) from error
+            with self._state_lock:
+                if self._process is process and process.poll() is None:
+                    self._ready_generation = self._generation
+                    self._state = "ready"
+                    self._last_error = None
+                    self._completed_requests += 1
+            return answer
+        finally:
+            self._request_lock.release()
 
 
 def _host_authority(value: str | None) -> tuple[str, int | None] | None:
@@ -612,6 +1061,7 @@ class MemoryHTTPServer(ThreadingHTTPServer):
         math_engine: Any | None = None,
         reference_engine: MemoryEngine | None = None,
         science_dataset_path: Path | None = None,
+        matlm_worker: MATLMWorker | None = None,
     ) -> None:
         host = str(server_address[0]).strip().casefold()
         if host not in _LOOPBACK_HOSTS:
@@ -629,6 +1079,7 @@ class MemoryHTTPServer(ThreadingHTTPServer):
         self.engine_lock = threading.RLock()
         self.reference_engine = reference_engine
         self.reference_lock = threading.RLock()
+        self.matlm_worker = matlm_worker or MATLMWorker()
         self.science_dataset_path = (
             science_dataset_path.expanduser().resolve()
             if science_dataset_path is not None
@@ -661,7 +1112,17 @@ class MemoryHTTPServer(ThreadingHTTPServer):
             super().server_close()
             if reference_engine is not None:
                 reference_engine.close()
+            self.matlm_worker.stop()
             raise
+        self.matlm_hub = self.memory_hub or MemoryHub(
+            {"personal": engine},
+            {"personal": SpacePolicy.private("local-agent")},
+        )
+        self.matlm_space_names = (
+            ["personal", "science-reference"]
+            if reference_engine is not None
+            else ["personal"]
+        )
         # Le laboratoire est synchrone pour le MVP. Ce verrou distinct garantit
         # qu'un seul corpus temporaire est actif sans bloquer les autres routes.
         self.history_stress_lock = threading.Lock()
@@ -733,14 +1194,47 @@ class MemoryHTTPServer(ThreadingHTTPServer):
             )
         return list(capsule["items"][:top_k])
 
+    def matlm_capsule(self, question: str, *, request_id: str) -> dict[str, Any]:
+        """Rappelle les espaces autorises et construit une capsule en lecture seule."""
+
+        options = {
+            "request_id": request_id,
+            "space_names": self.matlm_space_names,
+            "top_k": 12,
+            "hub_character_budget": 48_000,
+            "character_budget": 32_768,
+            "max_evidence_items": 12,
+            "max_evidence_text_characters": 2_000,
+            "max_answer_characters": 4_000,
+            "max_calculations": 4,
+        }
+        if self.reference_engine is None:
+            with self.engine_lock:
+                return recall_native_capsule(
+                    self.matlm_hub,
+                    "local-agent",
+                    question,
+                    **options,
+                )
+        with self.engine_lock, self.reference_lock:
+            return recall_native_capsule(
+                self.matlm_hub,
+                "local-agent",
+                question,
+                **options,
+            )
+
     def server_close(self) -> None:
-        """Close the listener and the server-owned reference connection."""
+        """Close the listener, MAT-LM and the server-owned reference connection."""
 
         try:
-            super().server_close()
+            self.matlm_worker.stop()
         finally:
-            if self.reference_engine is not None:
-                self.reference_engine.close()
+            try:
+                super().server_close()
+            finally:
+                if self.reference_engine is not None:
+                    self.reference_engine.close()
 
     def _reserve_conversation_episode_locked(self) -> str:
         if self.conversation_episode_events >= MAX_CONVERSATION_EPISODE_EVENTS:
@@ -969,6 +1463,14 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
                     "stats_available": isinstance(stats, dict),
                     "pipeline": pipeline_status,
                 },
+                head_only=head_only,
+            )
+            return
+
+        if path == "/api/matlm/status":
+            self._send_json(
+                HTTPStatus.OK,
+                {"ok": True, "matlm": self.server.matlm_worker.status()},
                 head_only=head_only,
             )
             return
@@ -1282,6 +1784,9 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
             "/api/chat",
             "/api/calculate",
             "/api/import",
+            "/api/matlm/start",
+            "/api/matlm/stop",
+            "/api/matlm/ask",
             "/api/math/catalog/import",
             "/api/science/reference/import",
             "/api/stress/history/run",
@@ -1299,7 +1804,9 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
             return
         payload = self._read_json_object(
             max_bytes=(
-                MAX_CHAT_BODY_BYTES
+                MAX_MATLM_BODY_BYTES
+                if path.startswith("/api/matlm/")
+                else MAX_CHAT_BODY_BYTES
                 if path in {"/api/chat", "/api/calculate"}
                 else MAX_HISTORY_STRESS_BODY_BYTES
                 if path == "/api/stress/history/run"
@@ -1307,6 +1814,15 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
             )
         )
         if payload is None:
+            return
+        if path == "/api/matlm/start":
+            self._handle_matlm_start(payload)
+            return
+        if path == "/api/matlm/stop":
+            self._handle_matlm_stop(payload)
+            return
+        if path == "/api/matlm/ask":
+            self._handle_matlm_ask(payload)
             return
         if path == "/api/stress/history/run":
             self._handle_history_stress_run(payload)
@@ -1372,6 +1888,116 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
             return
         status = response.pop("_http_status", HTTPStatus.OK)
         self._send_json(status, {"ok": True, **response})
+
+    def _handle_matlm_start(self, payload: dict[str, Any]) -> None:
+        if payload:
+            self._error(HTTPStatus.BAD_REQUEST, "Le demarrage MAT-LM n'accepte aucun parametre.")
+            return
+        try:
+            status = self.server.matlm_worker.start()
+        except MATLMUnavailableError as error:
+            self._error(HTTPStatus.SERVICE_UNAVAILABLE, _clean_text(error, 300))
+            return
+        self._send_json(
+            HTTPStatus.ACCEPTED if status.get("state") == "starting" else HTTPStatus.OK,
+            {"ok": True, "matlm": status},
+        )
+
+    def _handle_matlm_stop(self, payload: dict[str, Any]) -> None:
+        if payload:
+            self._error(HTTPStatus.BAD_REQUEST, "L'arret MAT-LM n'accepte aucun parametre.")
+            return
+        try:
+            status = self.server.matlm_worker.stop()
+        except Exception:
+            LOGGER.exception("Impossible d'arreter MAT-LM proprement")
+            self._error(HTTPStatus.INTERNAL_SERVER_ERROR, "Arret MAT-LM incomplet.")
+            return
+        self._send_json(HTTPStatus.OK, {"ok": True, "matlm": status})
+
+    def _handle_matlm_ask(self, payload: dict[str, Any]) -> None:
+        allowed_fields = {"question", "request_id"}
+        unknown_fields = sorted(set(payload) - allowed_fields)
+        if unknown_fields:
+            self._error(
+                HTTPStatus.BAD_REQUEST,
+                "Parametre MAT-LM inconnu: " + ", ".join(unknown_fields),
+            )
+            return
+        question = payload.get("question")
+        if not isinstance(question, str):
+            self._error(HTTPStatus.BAD_REQUEST, "question doit etre une chaine.")
+            return
+        question = unicodedata.normalize("NFC", question).strip()
+        if not question:
+            self._error(HTTPStatus.BAD_REQUEST, "La question MAT-LM ne peut pas etre vide.")
+            return
+        if len(question) > MAX_MATLM_QUESTION_CHARS:
+            self._error(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, "La question MAT-LM est trop longue.")
+            return
+        request_id = payload.get("request_id")
+        if request_id is None:
+            request_id = f"web-matlm-{uuid4()}"
+        elif (
+            not isinstance(request_id, str)
+            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", request_id.strip())
+        ):
+            self._error(HTTPStatus.BAD_REQUEST, "request_id MAT-LM invalide.")
+            return
+        else:
+            request_id = request_id.strip()
+
+        try:
+            capsule = self.server.matlm_capsule(question, request_id=request_id)
+            answer = validate_answer(self.server.matlm_worker.ask(capsule), capsule)
+        except MATLMBusyError as error:
+            self._error(HTTPStatus.CONFLICT, _clean_text(error, 300))
+            return
+        except MATLMTimeoutError as error:
+            self._error(HTTPStatus.GATEWAY_TIMEOUT, _clean_text(error, 300))
+            return
+        except MATLMUnavailableError as error:
+            self._error(HTTPStatus.SERVICE_UNAVAILABLE, _clean_text(error, 300))
+            return
+        except MATLMWorkerError as error:
+            self._error(HTTPStatus.BAD_GATEWAY, _clean_text(error, 300))
+            return
+        except (MATLMBridgeError, ContractValidationError, ValueError) as error:
+            self._error(HTTPStatus.UNPROCESSABLE_ENTITY, _clean_text(error, 300))
+            return
+        except Exception:
+            LOGGER.exception("Erreur locale pendant une question MAT-LM")
+            self._error(HTTPStatus.INTERNAL_SERVER_ERROR, "MAT-LM a rencontre une erreur locale.")
+            return
+
+        abstention = answer.get("abstention", {})
+        evidence_by_id = {
+            row["evidence_id"]: row
+            for row in capsule.get("evidence", [])
+            if isinstance(row, dict) and isinstance(row.get("evidence_id"), str)
+        }
+        citations = [
+            evidence_by_id[evidence_id]
+            for evidence_id in answer.get("evidence_ids", [])
+            if evidence_id in evidence_by_id
+        ]
+        self._send_json(
+            HTTPStatus.OK,
+            {
+                "ok": True,
+                "intent": "matlm",
+                "reply": answer.get("answer", ""),
+                "answer": answer,
+                "citations": citations,
+                "details": {
+                    "request_id": request_id,
+                    "evidence_available": len(capsule.get("evidence", [])),
+                    "evidence_used": len(answer.get("evidence_ids", [])),
+                    "abstained": bool(abstention.get("abstained")),
+                    "automatic_learning": False,
+                },
+            },
+        )
 
     def _handle_history_stress_run(self, payload: dict[str, Any]) -> None:
         allowed_fields = {"event_count", "seed"}
@@ -2103,6 +2729,67 @@ def build_parser() -> argparse.ArgumentParser:
         help="desactive explicitement la memoire scientifique separee",
     )
     parser.add_argument(
+        "--enable-matlm",
+        action="store_true",
+        help="active le panneau MAT-LM local; le modele reste arrete jusqu'au bouton Demarrer",
+    )
+    parser.add_argument(
+        "--matlm-python",
+        type=Path,
+        default=DEFAULT_MATLM_PYTHON,
+        help=f"Python de l'environnement MAT-LM (defaut: {DEFAULT_MATLM_PYTHON})",
+    )
+    parser.add_argument(
+        "--matlm-model",
+        type=Path,
+        default=DEFAULT_MATLM_MODEL,
+        help=f"dossier Granite local (defaut: {DEFAULT_MATLM_MODEL})",
+    )
+    parser.add_argument(
+        "--matlm-adapter",
+        type=Path,
+        default=DEFAULT_MATLM_ADAPTER,
+        help=f"dossier adaptateur PEFT local (defaut: {DEFAULT_MATLM_ADAPTER})",
+    )
+    parser.add_argument(
+        "--matlm-load-mode",
+        choices=("auto", "qlora-nf4", "bf16"),
+        default="auto",
+        help="chargement XPU MAT-LM (defaut: auto)",
+    )
+    parser.add_argument(
+        "--matlm-device-index",
+        type=lambda value: _bounded_integer(
+            value, name="matlm-device-index", minimum=0, maximum=15
+        ),
+        default=0,
+        help="index Intel XPU (defaut: 0)",
+    )
+    parser.add_argument(
+        "--matlm-max-input-tokens",
+        type=lambda value: _bounded_integer(
+            value, name="matlm-max-input-tokens", minimum=256, maximum=131_072
+        ),
+        default=4096,
+        help="borne de tokens d'entree (defaut: 4096)",
+    )
+    parser.add_argument(
+        "--matlm-max-new-tokens",
+        type=lambda value: _bounded_integer(
+            value, name="matlm-max-new-tokens", minimum=16, maximum=8_192
+        ),
+        default=768,
+        help="borne de tokens generes (defaut: 768)",
+    )
+    parser.add_argument(
+        "--matlm-timeout-seconds",
+        type=lambda value: _bounded_integer(
+            value, name="matlm-timeout-seconds", minimum=5, maximum=600
+        ),
+        default=180,
+        help="delai maximal d'une question avant arret du worker (defaut: 180)",
+    )
+    parser.add_argument(
         "--pipeline-batch-size",
         type=lambda value: _bounded_integer(
             value, name="pipeline-batch-size", minimum=1, maximum=1_000
@@ -2130,8 +2817,22 @@ def main(argv: list[str] | None = None) -> int:
     engine: MemoryEngine | None = None
     pipeline: MemoryPipeline | None = None
     reference_engine: MemoryEngine | None = None
+    matlm_worker: MATLMWorker | None = None
     server: MemoryHTTPServer | None = None
     try:
+        matlm_worker = MATLMWorker(
+            MATLMWorkerConfig(
+                enabled=args.enable_matlm,
+                python_path=args.matlm_python,
+                base_model_path=args.matlm_model,
+                adapter_path=args.matlm_adapter,
+                load_mode=args.matlm_load_mode,
+                device_index=args.matlm_device_index,
+                max_input_tokens=args.matlm_max_input_tokens,
+                max_new_tokens=args.matlm_max_new_tokens,
+                request_timeout_seconds=float(args.matlm_timeout_seconds),
+            )
+        )
         queue_path: Path | None = None
         if args.async_injection:
             queue_path = (
@@ -2183,6 +2884,7 @@ def main(argv: list[str] | None = None) -> int:
             pipeline=pipeline,
             reference_engine=reference_engine,
             science_dataset_path=science_dataset_path,
+            matlm_worker=matlm_worker,
         )
         host, port = server.server_address[:2]
         display_host = f"[{host}]" if ":" in str(host) else host
@@ -2196,6 +2898,8 @@ def main(argv: list[str] | None = None) -> int:
             server.server_close()
         elif reference_engine is not None:
             reference_engine.close()
+        if server is None and matlm_worker is not None:
+            matlm_worker.stop()
         if pipeline is not None:
             pipeline.close()
         elif engine is not None:

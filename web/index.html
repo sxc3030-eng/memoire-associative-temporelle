@@ -1131,6 +1131,288 @@
       white-space: pre-wrap;
     }
 
+    .matlm-panel {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr);
+      height: min(820px, calc(100vh - 42px));
+      min-height: 680px;
+      scroll-margin-top: 18px;
+    }
+
+    .matlm-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 22px;
+      padding: clamp(22px, 3vw, 32px) clamp(22px, 3vw, 34px) 17px;
+      border-bottom: 1px solid rgba(199, 208, 199, 0.65);
+    }
+
+    .matlm-header .intro {
+      max-width: 790px;
+    }
+
+    .matlm-header-tools {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 8px;
+      max-width: 470px;
+    }
+
+    .matlm-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      flex: 0 0 auto;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--ink-soft);
+      background: var(--surface-solid);
+      font-size: 0.75rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .matlm-status-pill::before {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #a6aca9;
+      box-shadow: 0 0 0 4px rgba(166, 172, 169, 0.14);
+      content: "";
+    }
+
+    .matlm-status-pill[data-state="ready"] {
+      border-color: rgba(31, 107, 85, 0.27);
+      color: var(--green-dark);
+      background: var(--green-pale);
+    }
+
+    .matlm-status-pill[data-state="ready"]::before {
+      background: #27966f;
+      box-shadow: 0 0 0 4px rgba(39, 150, 111, 0.14);
+    }
+
+    .matlm-status-pill[data-state="loading"],
+    .matlm-status-pill[data-state="busy"] {
+      border-color: rgba(217, 137, 67, 0.3);
+      color: #76512f;
+      background: var(--amber-pale);
+    }
+
+    .matlm-status-pill[data-state="error"] {
+      border-color: rgba(169, 77, 69, 0.28);
+      color: var(--red);
+      background: #fff8f6;
+    }
+
+    .matlm-status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin: 14px clamp(18px, 3vw, 30px) 0;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .matlm-status-text,
+    .matlm-safety-inline,
+    .matlm-message-meta,
+    .matlm-citation-meta,
+    .matlm-composer-help {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 0.74rem;
+      line-height: 1.5;
+    }
+
+    .matlm-safety-inline {
+      max-width: 500px;
+      color: var(--green-dark);
+      font-weight: 700;
+      text-align: right;
+    }
+
+    .matlm-chat-shell {
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) auto;
+      min-height: 0;
+      margin-top: 14px;
+      overflow: hidden;
+      background: rgba(250, 250, 246, 0.62);
+    }
+
+    .matlm-messages {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      min-height: 0;
+      padding: 22px clamp(16px, 4vw, 54px) 30px;
+      overflow: auto;
+      scroll-behavior: smooth;
+    }
+
+    .matlm-message {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      width: min(820px, 90%);
+    }
+
+    .matlm-message[data-role="user"] {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+    }
+
+    .matlm-message[data-role="assistant"],
+    .matlm-message[data-role="error"] {
+      align-self: flex-start;
+    }
+
+    .matlm-avatar {
+      display: grid;
+      width: 32px;
+      height: 32px;
+      flex: 0 0 32px;
+      place-items: center;
+      border-radius: 10px;
+      color: #fff;
+      background: var(--green);
+      font-size: 0.7rem;
+      font-weight: 850;
+    }
+
+    .matlm-message[data-role="user"] .matlm-avatar {
+      color: var(--ink);
+      background: var(--amber-pale);
+    }
+
+    .matlm-message-body {
+      min-width: 0;
+    }
+
+    .matlm-message[data-role="user"] .matlm-message-meta {
+      text-align: right;
+    }
+
+    .matlm-bubble {
+      margin-top: 4px;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 5px 16px 16px 16px;
+      color: var(--ink);
+      background: var(--surface-solid);
+      box-shadow: 0 5px 20px rgba(23, 34, 31, 0.05);
+      font-size: 0.85rem;
+      line-height: 1.58;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .matlm-message[data-role="user"] .matlm-bubble {
+      border-color: rgba(217, 137, 67, 0.28);
+      border-radius: 16px 5px 16px 16px;
+      background: #fffaf1;
+    }
+
+    .matlm-message[data-role="error"] .matlm-bubble {
+      border-color: rgba(169, 77, 69, 0.28);
+      color: #784943;
+      background: #fff8f6;
+    }
+
+    .matlm-citations {
+      margin-top: 9px;
+      padding: 8px 10px;
+      border: 1px solid rgba(31, 107, 85, 0.18);
+      border-radius: 10px;
+      background: #f5faf7;
+    }
+
+    .matlm-citations summary {
+      color: var(--green-dark);
+      cursor: pointer;
+      font-size: 0.7rem;
+      font-weight: 800;
+    }
+
+    .matlm-citation-list {
+      display: grid;
+      gap: 8px;
+      margin: 9px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .matlm-citation {
+      padding: 9px 10px;
+      border-left: 3px solid rgba(31, 107, 85, 0.45);
+      border-radius: 7px;
+      background: #fff;
+    }
+
+    .matlm-citation p {
+      margin: 0;
+      font-size: 0.72rem;
+      line-height: 1.48;
+    }
+
+    .matlm-citation-meta {
+      display: block;
+      margin-top: 4px;
+      font-size: 0.64rem;
+    }
+
+    .matlm-composer-wrap {
+      position: sticky;
+      bottom: 0;
+      z-index: 2;
+      padding: 14px clamp(16px, 4vw, 54px) 16px;
+      border-top: 1px solid rgba(199, 208, 199, 0.8);
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(14px);
+    }
+
+    .matlm-form {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .matlm-form textarea {
+      width: 100%;
+      min-height: 48px;
+      max-height: 150px;
+      resize: none;
+      padding: 12px 13px;
+      border: 1px solid var(--line-strong);
+      border-radius: 12px;
+      color: var(--ink);
+      background: #fbfbf7;
+      font: inherit;
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+
+    .matlm-form .primary-button {
+      min-height: 48px;
+    }
+
+    .matlm-composer-help {
+      margin-top: 7px;
+      text-align: center;
+      font-size: 0.66rem;
+    }
+
     .science-panel {
       grid-column: 1 / -1;
       padding: clamp(22px, 3vw, 34px);
@@ -1896,6 +2178,7 @@
       .science-layout {
         grid-template-columns: 1fr;
       }
+
     }
 
     @media (max-width: 1180px) and (min-width: 621px) {
@@ -1962,6 +2245,48 @@
 
       .science-panel {
         padding: 18px 14px;
+      }
+
+      .matlm-panel {
+        height: calc(100vh - 20px);
+        min-height: 600px;
+        padding: 0;
+      }
+
+      .matlm-header {
+        display: block;
+        padding: 18px 14px 14px;
+      }
+
+      .matlm-header-tools {
+        justify-content: flex-start;
+        margin-top: 14px;
+      }
+
+      .matlm-status-bar {
+        display: block;
+        margin: 10px 12px 0;
+      }
+
+      .matlm-safety-inline {
+        margin-top: 5px;
+        text-align: left;
+      }
+
+      .matlm-messages {
+        padding: 18px 12px 24px;
+      }
+
+      .matlm-message {
+        width: 100%;
+      }
+
+      .matlm-composer-wrap {
+        padding: 11px 12px 12px;
+      }
+
+      .matlm-form {
+        grid-template-columns: minmax(0, 1fr) auto;
       }
 
       .science-header {
@@ -2224,6 +2549,48 @@
           </div>
         </div>
       </aside>
+
+      <section class="panel matlm-panel" id="matlm-panel" aria-labelledby="matlm-title">
+        <header class="matlm-header">
+          <div>
+            <p class="eyebrow">Petit modèle + grande mémoire</p>
+            <h2 id="matlm-title">Parler à MAT-LM</h2>
+            <p class="intro">Posez une question comme dans un assistant classique. MAT-LM consulte seulement les souvenirs utiles et montre les sources derrière sa réponse.</p>
+          </div>
+          <div class="matlm-header-tools">
+            <span class="matlm-status-pill" id="matlm-status-pill" data-state="loading" role="status" aria-live="polite">Vérification…</span>
+            <button class="secondary-button" id="matlm-new-chat" type="button">Nouvelle conversation</button>
+            <button class="primary-button" id="matlm-start" type="button" disabled>Démarrer</button>
+            <button class="secondary-button" id="matlm-stop" type="button" disabled>Arrêter</button>
+          </div>
+        </header>
+
+        <div class="matlm-status-bar">
+          <p class="matlm-status-text" id="matlm-status-text">Lecture de la configuration MAT-LM…</p>
+          <p class="matlm-safety-inline"><strong>Lecture seule :</strong> effacer ce chat ou recevoir une réponse ne modifie jamais la mémoire.</p>
+        </div>
+
+        <div class="matlm-chat-shell">
+          <div class="matlm-messages" id="matlm-messages" role="log" aria-live="polite" aria-relevant="additions text" aria-label="Conversation avec MAT-LM">
+            <article class="matlm-message" data-role="assistant">
+              <div class="matlm-avatar" aria-hidden="true">M</div>
+              <div class="matlm-message-body">
+                <p class="matlm-message-meta">MAT-LM · prêt à discuter</p>
+                <div class="matlm-bubble">Bonjour. Démarrez le modèle, puis posez-moi une question. Je citerai les souvenirs utilisés et je m’abstiendrai s’ils ne suffisent pas.</div>
+              </div>
+            </article>
+          </div>
+
+          <div class="matlm-composer-wrap">
+            <form class="matlm-form" id="matlm-form">
+              <label for="matlm-question" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">Votre question pour MAT-LM</label>
+              <textarea id="matlm-question" rows="1" maxlength="4000" placeholder="Écrivez votre question…" required disabled></textarea>
+              <button class="primary-button" id="matlm-ask" type="submit" disabled>Envoyer</button>
+            </form>
+            <p class="matlm-composer-help">Entrée pour envoyer · Maj + Entrée pour une nouvelle ligne · les réponses ne sont pas apprises</p>
+          </div>
+        </div>
+      </section>
 
       <section class="panel science-panel" id="science-panel" aria-labelledby="science-title">
         <header class="science-header">
@@ -2525,6 +2892,15 @@
         historyMetrics: document.getElementById("history-metrics"),
         historyDetails: document.getElementById("history-details"),
         historyReport: document.getElementById("history-report"),
+        matlmStatusPill: document.getElementById("matlm-status-pill"),
+        matlmStatusText: document.getElementById("matlm-status-text"),
+        matlmStart: document.getElementById("matlm-start"),
+        matlmStop: document.getElementById("matlm-stop"),
+        matlmNewChat: document.getElementById("matlm-new-chat"),
+        matlmForm: document.getElementById("matlm-form"),
+        matlmQuestion: document.getElementById("matlm-question"),
+        matlmAsk: document.getElementById("matlm-ask"),
+        matlmMessages: document.getElementById("matlm-messages"),
         sciencePanel: document.getElementById("science-panel"),
         scienceReadyPill: document.getElementById("science-ready-pill"),
         scienceStatusText: document.getElementById("science-status-text"),
@@ -2563,6 +2939,13 @@
       const historyState = {
         catalog: null,
         running: false
+      };
+
+      const matlmState = {
+        status: null,
+        busy: false,
+        timer: null,
+        conversationId: 0
       };
 
       const TEST_RUN_TRACKING_KEY = "memoire-associative-temporelle:test-runs:v1";
@@ -2669,6 +3052,295 @@
           return payload;
         } finally {
           window.clearTimeout(timer);
+        }
+      }
+
+      const matlmGreeting = "Bonjour. Démarrez le modèle, puis posez-moi une question. Je citerai les souvenirs utilisés et je m’abstiendrai s’ils ne suffisent pas.";
+
+      function matlmCitationLabel(citation) {
+        const statusLabels = {
+          verified: "vérifiée",
+          confirmed: "confirmée",
+          executed: "calculée",
+          observed: "observée",
+          derived: "déduite",
+          unverified: "non vérifiée"
+        };
+        const parts = [];
+        const status = statusLabels[citation?.status] || citation?.status;
+        if (status) parts.push(status);
+        if (citation?.space === "reference") parts.push("référence scientifique");
+        if (citation?.space === "private") parts.push("mémoire personnelle");
+        if (citation?.temporal_context) parts.push(String(citation.temporal_context));
+        return parts.join(" · ");
+      }
+
+      function appendMatlmMessage(role, text, options = {}) {
+        const article = document.createElement("article");
+        article.className = "matlm-message";
+        article.dataset.role = role;
+        if (options.id) article.id = options.id;
+
+        const avatar = document.createElement("div");
+        avatar.className = "matlm-avatar";
+        avatar.setAttribute("aria-hidden", "true");
+        avatar.textContent = role === "user" ? "V" : role === "error" ? "!" : "M";
+
+        const body = document.createElement("div");
+        body.className = "matlm-message-body";
+        const meta = document.createElement("p");
+        meta.className = "matlm-message-meta";
+        meta.textContent = role === "user"
+          ? "Vous · maintenant"
+          : role === "error"
+            ? "MAT-LM · réponse interrompue"
+            : "MAT-LM · maintenant";
+        const bubble = document.createElement("div");
+        bubble.className = "matlm-bubble";
+        bubble.textContent = text;
+        body.append(meta, bubble);
+
+        const citations = Array.isArray(options.citations) ? options.citations : [];
+        if (role === "assistant" && (citations.length || options.confidence !== undefined)) {
+          const details = document.createElement("details");
+          details.className = "matlm-citations";
+          const summary = document.createElement("summary");
+          summary.textContent = citations.length
+            ? `${citations.length} source${citations.length > 1 ? "s" : ""} utilisée${citations.length > 1 ? "s" : ""}`
+            : "Pourquoi MAT-LM s’est abstenu";
+          details.appendChild(summary);
+
+          const confidence = Number(options.confidence);
+          if (Number.isFinite(confidence)) {
+            const confidenceText = document.createElement("p");
+            confidenceText.className = "matlm-citation-meta";
+            confidenceText.textContent = `Confiance déclarée : ${Math.round(confidence * 100)} % · cette réponse n’est pas apprise`;
+            details.appendChild(confidenceText);
+          }
+          if (citations.length) {
+            const list = document.createElement("ul");
+            list.className = "matlm-citation-list";
+            citations.forEach(citation => {
+              const item = document.createElement("li");
+              item.className = "matlm-citation";
+              const citationText = document.createElement("p");
+              citationText.textContent = String(citation?.text || "Source sans texte");
+              const citationMeta = document.createElement("span");
+              citationMeta.className = "matlm-citation-meta";
+              citationMeta.textContent = matlmCitationLabel(citation) || String(citation?.evidence_id || "preuve");
+              item.append(citationText, citationMeta);
+              list.appendChild(item);
+            });
+            details.appendChild(list);
+          } else if (options.abstentionReason) {
+            const missing = document.createElement("p");
+            missing.className = "matlm-citation-meta";
+            missing.textContent = `Motif : ${String(options.abstentionReason).replace(/_/g, " ")}.`;
+            details.appendChild(missing);
+          }
+          body.appendChild(details);
+        }
+
+        article.append(avatar, body);
+        els.matlmMessages.appendChild(article);
+        els.matlmMessages.scrollTop = els.matlmMessages.scrollHeight;
+        return article;
+      }
+
+      function clearMatlmConversation() {
+        matlmState.conversationId += 1;
+        els.matlmMessages.replaceChildren();
+        appendMatlmMessage("assistant", matlmGreeting);
+        els.matlmQuestion.value = "";
+        autoResizeMatlmInput();
+        if (!els.matlmQuestion.disabled) els.matlmQuestion.focus();
+      }
+
+      function autoResizeMatlmInput() {
+        els.matlmQuestion.style.height = "auto";
+        els.matlmQuestion.style.height = `${Math.min(els.matlmQuestion.scrollHeight, 150)}px`;
+      }
+
+      function scheduleMatlmStatus(status) {
+        if (matlmState.timer !== null) window.clearTimeout(matlmState.timer);
+        matlmState.timer = null;
+        if (!document.hidden && status?.running && ["starting", "busy"].includes(status.state)) {
+          matlmState.timer = window.setTimeout(() => void refreshMatlmStatus(true), 2000);
+        }
+      }
+
+      function renderMatlmStatus(payload) {
+        const status = payload?.matlm && typeof payload.matlm === "object" ? payload.matlm : payload;
+        matlmState.status = status || null;
+        const enabled = status?.enabled === true;
+        const configured = status?.configured === true;
+        const running = status?.running === true;
+        const state = String(status?.state || "disabled");
+        let pillState = "stopped";
+        let pillText = "Arrêté";
+        let detail = "MAT-LM est prêt à être configuré.";
+
+        if (!enabled) {
+          pillText = "Désactivé";
+          detail = "MAT-LM n’a pas été activé au démarrage de l’application.";
+        } else if (!configured) {
+          pillState = "error";
+          pillText = "Fichiers manquants";
+          detail = "Le modèle ou son adaptateur local n’a pas été trouvé. Vérifiez la configuration de démarrage.";
+        } else if (state === "starting") {
+          pillState = "loading";
+          pillText = "Chargement";
+          detail = "Le modèle local se prépare. La première réponse peut prendre un peu plus de temps.";
+        } else if (state === "busy") {
+          pillState = "busy";
+          pillText = "Réflexion";
+          detail = "MAT-LM consulte les souvenirs utiles et prépare une réponse avec ses sources.";
+        } else if (state === "ready") {
+          pillState = "ready";
+          pillText = "Prêt";
+          detail = `MAT-LM est prêt · ${status.completed_requests || 0} réponse(s) validée(s) dans cette session.`;
+        } else if (state === "error") {
+          pillState = "error";
+          pillText = "Erreur";
+          detail = status?.last_error || "Le worker a été arrêté pour préserver le contrat de réponse.";
+        } else {
+          detail = "MAT-LM est disponible. Cliquez sur Démarrer pour commencer une conversation.";
+        }
+
+        els.matlmStatusPill.dataset.state = pillState;
+        els.matlmStatusPill.textContent = pillText;
+        els.matlmStatusText.textContent = detail;
+        els.matlmStart.disabled = matlmState.busy || !enabled || !configured || running;
+        els.matlmStop.disabled = !running;
+        els.matlmQuestion.disabled = matlmState.busy || !running;
+        els.matlmAsk.disabled = matlmState.busy || !running;
+        scheduleMatlmStatus(status);
+      }
+
+      async function refreshMatlmStatus(silent = false) {
+        try {
+          const payload = await apiFetch("/api/matlm/status", { timeoutMs: 8000 });
+          renderMatlmStatus(payload);
+        } catch (error) {
+          if (!silent) {
+            els.matlmStatusPill.dataset.state = "error";
+            els.matlmStatusPill.textContent = "Indisponible";
+            els.matlmStatusText.textContent = "Cette version du serveur n’expose pas encore MAT-LM.";
+          }
+          els.matlmStart.disabled = true;
+          els.matlmStop.disabled = true;
+          els.matlmQuestion.disabled = true;
+          els.matlmAsk.disabled = true;
+        }
+      }
+
+      async function startMatlm() {
+        if (matlmState.busy) return;
+        matlmState.busy = true;
+        els.matlmStart.disabled = true;
+        els.matlmStatusPill.dataset.state = "loading";
+        els.matlmStatusPill.textContent = "Démarrage";
+        els.matlmStatusText.textContent = "Ouverture du processus local MAT-LM…";
+        try {
+          const payload = await apiFetch("/api/matlm/start", {
+            method: "POST",
+            body: "{}",
+            timeoutMs: 10000
+          });
+          renderMatlmStatus(payload);
+        } catch (error) {
+          els.matlmStatusPill.dataset.state = "error";
+          els.matlmStatusPill.textContent = "Erreur";
+          els.matlmStatusText.textContent = error.message || "Impossible de démarrer MAT-LM.";
+        } finally {
+          matlmState.busy = false;
+          void refreshMatlmStatus(true);
+        }
+      }
+
+      async function stopMatlm() {
+        matlmState.busy = true;
+        els.matlmStop.disabled = true;
+        els.matlmStatusPill.dataset.state = "loading";
+        els.matlmStatusPill.textContent = "Arrêt";
+        els.matlmStatusText.textContent = "Libération du modèle et de la mémoire XPU…";
+        try {
+          const payload = await apiFetch("/api/matlm/stop", {
+            method: "POST",
+            body: "{}",
+            timeoutMs: 15000
+          });
+          renderMatlmStatus(payload);
+        } catch (error) {
+          els.matlmStatusPill.dataset.state = "error";
+          els.matlmStatusPill.textContent = "Erreur";
+          els.matlmStatusText.textContent = error.message || "Impossible d’arrêter MAT-LM proprement.";
+        } finally {
+          matlmState.busy = false;
+          void refreshMatlmStatus(true);
+        }
+      }
+
+      async function askMatlm(event) {
+        event.preventDefault();
+        const question = els.matlmQuestion.value.trim();
+        if (!question || matlmState.busy) return;
+        const conversationId = matlmState.conversationId;
+        matlmState.busy = true;
+        appendMatlmMessage("user", question);
+        els.matlmQuestion.value = "";
+        autoResizeMatlmInput();
+        els.matlmQuestion.disabled = true;
+        els.matlmAsk.disabled = true;
+        appendMatlmMessage(
+          "assistant",
+          "Je consulte les souvenirs utiles…",
+          { id: "matlm-thinking" }
+        );
+        const timeoutSeconds = Number(matlmState.status?.limits?.request_timeout_seconds) || 180;
+        const requestId = globalThis.crypto?.randomUUID?.()
+          || `web-matlm-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        try {
+          const payload = await apiFetch("/api/matlm/ask", {
+            method: "POST",
+            body: JSON.stringify({ question, request_id: requestId }),
+            timeoutMs: Math.min(610000, timeoutSeconds * 1000 + 15000)
+          });
+          const answer = payload?.answer || {};
+          const abstention = answer?.abstention || {};
+          if (conversationId === matlmState.conversationId) {
+            document.getElementById("matlm-thinking")?.remove();
+            const missing = Array.isArray(abstention.missing_information)
+              ? abstention.missing_information.join("; ")
+              : "";
+            const responseText = payload.reply
+              || (abstention.abstained
+                ? `Je préfère m’abstenir : les souvenirs disponibles ne suffisent pas.${missing ? ` Information manquante : ${missing}.` : ""}`
+                : "Je n’ai pas reçu de réponse exploitable.");
+            appendMatlmMessage("assistant", responseText, {
+              citations: payload?.citations,
+              confidence: answer?.confidence,
+              abstentionReason: abstention?.reason
+            });
+          }
+        } catch (error) {
+          if (conversationId === matlmState.conversationId) {
+            document.getElementById("matlm-thinking")?.remove();
+            appendMatlmMessage(
+              "error",
+              error?.name === "AbortError"
+                ? "La réponse a pris trop de temps. MAT-LM a été arrêté; vous pouvez le redémarrer puis réessayer."
+                : (error.message || "MAT-LM n’a pas pu répondre. Aucune réponse invalide n’a été conservée.")
+            );
+          }
+        } finally {
+          matlmState.busy = false;
+          await refreshMatlmStatus(true);
+          if (matlmState.status?.running) {
+            els.matlmQuestion.disabled = false;
+            els.matlmAsk.disabled = false;
+            els.matlmQuestion.focus();
+          }
         }
       }
 
@@ -4465,6 +5137,17 @@
         void loadScienceReference();
       });
       els.pipelineTest.addEventListener("click", testPipeline);
+      els.matlmStart.addEventListener("click", startMatlm);
+      els.matlmStop.addEventListener("click", stopMatlm);
+      els.matlmNewChat.addEventListener("click", clearMatlmConversation);
+      els.matlmForm.addEventListener("submit", askMatlm);
+      els.matlmQuestion.addEventListener("input", autoResizeMatlmInput);
+      els.matlmQuestion.addEventListener("keydown", event => {
+        if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+          event.preventDefault();
+          els.matlmForm.requestSubmit();
+        }
+      });
       els.mathForm.addEventListener("submit", calculateMath);
       els.mathCatalogSearch.addEventListener("input", renderMathCatalog);
       els.mathCatalogImport.addEventListener("click", importMathCatalog);
@@ -4480,8 +5163,11 @@
         if (document.hidden) {
           if (pipelineState.timer !== null) window.clearTimeout(pipelineState.timer);
           pipelineState.timer = null;
+          if (matlmState.timer !== null) window.clearTimeout(matlmState.timer);
+          matlmState.timer = null;
         } else {
           void refreshPipeline(true);
+          void refreshMatlmStatus(true);
         }
       });
 
@@ -4542,6 +5228,7 @@
 
       refreshMemory(false);
       void refreshPipeline(false);
+      void refreshMatlmStatus(false);
       void loadMathCatalog();
       void loadHistoryCatalog();
       void loadScienceReference();

@@ -1,0 +1,146 @@
+{
+  "schema_version": "matlm-public-training-manifest-v1",
+  "release": "MAT-LM-2B-v0.8-pilot-300",
+  "created_at_utc": "2026-07-21T16:44:42.113362+00:00",
+  "status": "complete",
+  "source_note": "Le code d'entraînement exact est inclus dans la publication qui contient ce manifeste; aucun chemin de profil local n'est conservé.",
+  "base_model": {
+    "model_id": "ibm-granite/granite-3.3-2b-instruct",
+    "local_artifact": "models/granite-3.3-2b-instruct",
+    "license": "Apache-2.0",
+    "artifact_hashes_sha256": {
+      "config.json": "9202d328d8368958aab7dad89a8e6aa35c250b3a2eedd2d8850ee0bcceca65f6",
+      "tokenizer.json": "91168e938f05796aa6dcca7e485e4b30ab52785320c7a6391ecef86e6c84681e",
+      "model-00001-of-00002.safetensors": "12880d33c0ad4726af5cf8c07406905f9b496253c58ee46f52be8bde8ccf2254",
+      "model-00002-of-00002.safetensors": "a8757c5bf7627933e7fddbd9bab0533491b4dc0962820e0617f356ca1a379ffa"
+    }
+  },
+  "data": {
+    "overlap_checked": true,
+    "train": {
+      "path": "training-data/matlm-train-v8.jsonl",
+      "bytes": 10348250,
+      "example_count": 2250,
+      "seed": 20260721,
+      "sha256": "e79bd5ff4f27c572c0a6d7f122a51dd3ba9b43c7eb9f21e6f1dd56bcb76625c4",
+      "generator_sha256": "9413ade8c18eae9ac5a964d34169b5092c89aa1a0b84da82cdfd69dd21da8828",
+      "examples_per_task": 250
+    },
+    "development": {
+      "path": "training-data/matlm-dev-v8.jsonl",
+      "bytes": 1241790,
+      "example_count": 270,
+      "seed": 20260722,
+      "sha256": "aa2d116ecce079e9a9e33e2df18d9bfdf8e30b3084116346fafc0a711e389a63",
+      "generator_sha256": "9019a0913d272d956b7e3f8fce2a4b5a18c8e82c53d165487ecab7b6a7f940fb",
+      "examples_per_task": 30
+    },
+    "task_types": [
+      "direct_recall_with_citations",
+      "multi_hop_relation",
+      "date_age_arithmetic",
+      "role_distinction",
+      "causal_uncertainty",
+      "contradiction_resolution",
+      "distractor_rejection",
+      "unsupported_abstention",
+      "provenance_selection"
+    ],
+    "maximum_tokens": {
+      "train": 1020,
+      "development": 1016,
+      "sequence_limit": 1024,
+      "truncated_examples": 0
+    }
+  },
+  "training": {
+    "mode": "bf16-lora",
+    "effective_mode": "bf16-lora-attention",
+    "precision": "bf16",
+    "seed": 20260721,
+    "max_steps": 300,
+    "epochs_requested": 1.0,
+    "epochs_completed": 0.13333333333333333,
+    "batch_size": 1,
+    "gradient_accumulation_steps": 1,
+    "sequence_length": 1024,
+    "learning_rate": 0.0001,
+    "optimizer": "adamw_torch",
+    "warmup_ratio": 0.03,
+    "weight_decay": 0.0,
+    "gradient_checkpointing": true,
+    "attention_modules": ["q_proj", "k_proj", "v_proj", "o_proj"],
+    "lora": {
+      "rank": 8,
+      "alpha": 16,
+      "dropout": 0.05,
+      "bias": "none"
+    },
+    "assistant_token_masking": "template-mask-then-final-assistant-fallback"
+  },
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.14",
+    "device": "Intel(R) Arc(TM) B570 Graphics",
+    "packages": {
+      "accelerate": "1.14.0",
+      "bitsandbytes": "0.49.2",
+      "peft": "0.19.1",
+      "torch": "2.12.0.dev20260404+xpu",
+      "transformers": "4.57.6"
+    }
+  },
+  "result": {
+    "train_loss": 0.0754976246257623,
+    "train_runtime_seconds": 375.5453,
+    "trainable_parameters": 4259840,
+    "total_parameters": 2537799680,
+    "trainable_fraction": 0.001678556441460344,
+    "evaluation_history": [
+      {"step": 100, "eval_loss": 0.03736138343811035},
+      {"step": 200, "eval_loss": 0.023199398070573807},
+      {"step": 300, "eval_loss": 0.022718209773302078}
+    ],
+    "adapter": {
+      "path": "training-runs/MAT-LM-2B-v0.8-pilot-300/adapter",
+      "weights_file": "adapter_model.safetensors",
+      "weights_bytes": 17081704,
+      "weights_sha256": "531c746c5bbd1bd9bd86877e362f236efc6a85f8903b3e531bc33b3a0f227fb3",
+      "config_sha256": "161b2c4a0bdac94f5154ca2820864bf6f01d14e4bf95b2d87cf866ca43f8c42a"
+    },
+    "xpu_memory": {
+      "peak_allocated_bytes": 5892959232,
+      "peak_reserved_bytes": 7950303232
+    }
+  },
+  "pilot_evaluation": {
+    "dataset_kind": "development-not-sealed",
+    "selected_count": 9,
+    "selection_sha256": "c884894291473583d82beaf8bd9d253d2c24ccded1f208ddfad33993e37c5d10",
+    "generation": {
+      "do_sample": false,
+      "seed": 20260721,
+      "max_input_tokens": 4096,
+      "max_new_tokens": 768,
+      "one_model_loaded_at_a_time": true
+    },
+    "reports": {
+      "base": "reports/granite-base-dev9-v8.json",
+      "adapter_before_deterministic_recalculation": "reports/matlm-v0.8-pilot-300-dev9-adapter.json",
+      "adapter_verified": "reports/matlm-v0.8-pilot-300-dev9-verified.json"
+    }
+  },
+  "safety": {
+    "external_inference_api": false,
+    "network_during_inference": false,
+    "allow_model_download": false,
+    "push_to_hub": false,
+    "trust_remote_code": false,
+    "raw_model_output_stored_in_reports": false
+  },
+  "limitations": [
+    "Le lot pilote de neuf cas est un test de développement et non un benchmark officiel scellé.",
+    "Les faits synthétiques évaluent le contrat et les opérations de mémoire, pas la connaissance générale.",
+    "Un test scellé plus large et des benchmarks publics restent nécessaires avant toute revendication générale."
+  ]
+}

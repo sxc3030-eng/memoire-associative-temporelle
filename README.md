@@ -2,7 +2,7 @@
 
 > Un moteur expérimental de mémoire épisodique, sémantique et explicable pour agents.
 
-**Statut :** prototype local v0.6 expérimental — mémoire asynchrone, calculatrice déterministe, laboratoire historique isolé et Memory Hub multi-IA, sans revendication de résultat scientifique.
+**Statut :** prototype local v0.8 expérimental — mémoire asynchrone, Memory Hub multi-IA et premier adaptateur MAT-LM entraîné hors ligne, sans revendication de résultat scientifique général.
 
 Ce dépôt transforme un croquis initial en une proposition testable : conserver ce qui s'est produit dans l'ordre, consolider les motifs entre plusieurs expériences, puis retrouver ou prolonger une séquence à partir d'indices incomplets.
 
@@ -22,11 +22,20 @@ La v0.5 ajoute un **laboratoire historique calculable**. Il génère une chroniq
 
 La v0.6 ajoute un **Memory Hub indépendant des modèles**. Plusieurs IA locales peuvent consulter les mêmes références à travers une capsule JSON bornée, tout en gardant des espaces privés physiquement séparés. Un banc compare chaque empreinte de modèle avec et sans capsule; il ne télécharge, ne supprime et ne remplace aucun modèle.
 
+La v0.7 prépare **MAT-LM-2B**, un adaptateur local spécialisé dans l'usage de
+la mémoire. Il apprend sur des mondes fictifs séparés des évaluations à citer
+les preuves, résoudre des contradictions, demander des calculs et s'abstenir.
+Les faits restent dans la mémoire externe au lieu d'être réappris dans les
+poids.
+
 ## Essayer le prototype
 
 Le prototype fonctionne entièrement sur l'ordinateur, sans compte payant, clé API ou dépendance externe. Les souvenirs sont conservés dans une base SQLite locale.
 
-![Interface du prototype de mémoire associative](docs/assets/interface-prototype.png)
+![Interface historique du prototype de mémoire associative v0.6](docs/assets/interface-prototype.png)
+
+*Capture historique v0.6. La v0.8 ajoute en dessous une conversation MAT-LM
+persistante avec état du modèle, preuves repliables et commande d'arrêt.*
 
 ### Sur Windows
 
@@ -197,6 +206,79 @@ abstention, hallucinations interdites et latence, puis libère le modèle. Voir
 biographique](docs/CURRICULUM_SCIENCE_BIOGRAPHIES.md), le [passage de fumée
 Ollama v0.6](docs/BENCHMARK_MULTI_IA_V06.md) et le [défi complet de Qwen 1,5B
 Base](docs/BENCHMARK_QWEN_1_5B_SCIENCE_V06.md).
+
+### Former le modèle dédié MAT-LM
+
+Le premier candidat est Granite 3.3 2B Instruct avec un adaptateur LoRA local.
+Le générateur crée 2 250 exercices synthétiques équilibrés et un jeu de développement
+avec une autre graine. Chaque capsule et chaque réponse sont validées contre
+le contrat JSON réel avant l'entraînement; les identités et faits du benchmark
+scientifique sont interdits.
+
+```powershell
+python scripts/build_memory_native_curriculum.py `
+  --seed 20260721 --count 2250 `
+  --forbidden-corpus examples\science-biographies-v1.json `
+  --output training-data\matlm-train-v8.jsonl `
+  --manifest-output training-data\matlm-train-v8.manifest.json
+
+python scripts/build_memory_native_curriculum.py `
+  --seed 20260722 --count 270 `
+  --forbidden-corpus examples\science-biographies-v1.json `
+  --output training-data\matlm-dev-v8.jsonl `
+  --manifest-output training-data\matlm-dev-v8.manifest.json
+
+python scripts/train_matlm.py `
+  --train-jsonl training-data\matlm-train-v8.jsonl `
+  --eval-jsonl training-data\matlm-dev-v8.jsonl `
+  --output-dir training-runs\matlm-plan `
+  --cache-dir D:\MAT-LM\hf-cache `
+  --mode bf16-lora --sequence-length 1024 --max-steps 1 --dry-run
+```
+
+Le mode réel ne pousse aucun poids vers Internet et charge un seul modèle. La
+procédure, les garde-fous et l'interrogation de l'adaptateur sont décrits dans
+[MAT-LM-2B](docs/MAT_LM_2B.md).
+Le résultat A/B du pilote v0.8 est documenté dans
+[Résultats MAT-LM v0.8](docs/MAT_LM_PILOT_RESULTS.md). La comparaison scellée
+prévue contre le Qwen 14B local, avec séparation mémoire/fine-tuning/taille, est
+définie dans le [protocole MAT-LM](docs/MAT_LM_BENCHMARK_PROTOCOL.md).
+
+### Parler à MAT-LM depuis l'interface locale
+
+Le panneau **Parler à MAT-LM** reste désactivé par défaut. Pour l'activer avec
+un environnement, un modèle Granite et un adaptateur PEFT déjà présents sur
+`D:\MAT-LM`, lancez :
+
+```powershell
+py start_agent.py --async-injection --enable-matlm `
+  --matlm-python D:\MAT-LM\.venv\Scripts\python.exe `
+  --matlm-model D:\MAT-LM\models\granite-3.3-2b-instruct `
+  --matlm-adapter D:\MAT-LM\adapter `
+  --matlm-load-mode auto --matlm-timeout-seconds 180
+```
+
+Le bouton **Démarrer MAT-LM** ouvre un unique processus local
+`scripts/ask_matlm.py --interactive`. Granite et l'adaptateur restent chargés
+entre les questions; **Arrêter** ferme le processus et libère explicitement le
+modèle. Le serveur n'ajoute jamais `--allow-model-download` et force
+Transformers en mode hors ligne.
+
+Pour chaque question, le serveur rappelle au plus 12 preuves autorisées dans
+les espaces personnel et scientifique, construit une capsule JSON bornée, puis
+n'affiche qu'une réponse validée contre cette capsule. Une sortie hors contrat
+ou un délai dépassé arrête le worker afin que la question suivante ne puisse
+pas recevoir une ancienne réponse. Ni la question ni la réponse générée ne
+sont injectées automatiquement dans la mémoire.
+
+Les routes sont accessibles uniquement sur la même origine locale :
+
+```text
+GET  /api/matlm/status
+POST /api/matlm/start
+POST /api/matlm/ask
+POST /api/matlm/stop
+```
 
 ### Observer le pipeline v0.3
 
@@ -508,6 +590,9 @@ Le premier cas d'usage recommandé est la **mémoire locale d'un agent** : petit
 - [Mesures du pipeline v0.3](docs/BENCHMARK_V03.md)
 - [Mémoire historique calculable](docs/MEMOIRE_HISTORIQUE_CALCULABLE.md)
 - [Benchmark du laboratoire historique v0.5](docs/BENCHMARK_HISTORY_V05.md)
+- [Contrat JSON du modèle natif de la mémoire](docs/MEMORY_NATIVE_LLM_CONTRACT.md)
+- [MAT-LM-2B : entraînement et évaluation](docs/MAT_LM_2B.md)
+- [YAGO et Wikidata comme mémoire de référence](docs/YAGO_WIKIDATA_MEMORY.md)
 - [Croquis à l'origine de l'idée](docs/assets/croquis-original.jpg)
 
 ## Première définition de la réussite
@@ -535,7 +620,9 @@ Le premier jalon est réussi si le moteur peut, de façon déterministe et repro
 - **v0.3 — Pipeline séparé :** file durable, tickets `HTTP 202`, worker de consolidation, lecteur distinct et métriques de retard/dédoublonnage/taille.
 - **v0.4 — Calcul déterministe :** catalogue versionné, expressions bornées, résultats traçables, benchmark avec oracle indépendant sans écriture mémoire et import explicite des règles.
 - **v0.5 — Histoire calculable :** oracle indépendant, 11 familles de dérivations, corpus fictif isolé et benchmark séparant score sémantique et plomberie.
-- **v0.6 — Modèle :** adaptateur pour petit modèle et expériences comparatives avec les baselines sans mémoire, calculatrice et RAG.
+- **v0.6 — Memory Hub :** espaces personnel, partagé et référence, corpus scientifique/biographique, puis comparaisons locales un modèle à la fois.
+- **v0.7 — Fondations MAT-LM :** contrat vérifiable, curriculum synthétique sans fuite, entraînement LoRA hors ligne, exécuteur local et import YAGO/Wikidata avec provenance.
+- **v0.8 — Pilote MAT-LM :** Granite 2B adapté sur neuf opérations de mémoire, recalcul déterministe, comparaison A/B reproductible et conversation persistante dans l'interface locale.
 
 Le plan complet, les critères d'acceptation et les tests sont décrits dans [docs/PLAN_DE_CREATION.md](docs/PLAN_DE_CREATION.md).
 
@@ -553,9 +640,9 @@ Ces questions sont laissées visibles afin que le prototype teste les hypothèse
 
 ## Publication et licence
 
-Le projet est publié dans le dépôt GitHub [sxc3030-eng/memoire-associative-temporelle](https://github.com/sxc3030-eng/memoire-associative-temporelle). Pour les prochaines versions publiques :
+Le projet est publié dans le dépôt GitHub [sxc3030-eng/memoire-associative-temporelle](https://github.com/sxc3030-eng/memoire-associative-temporelle). Aucune licence de réutilisation n'a encore été accordée : en l'absence de fichier de licence, les droits restent réservés au titulaire. Une licence ouverte pourra être choisie séparément sans retarder la publication expérimentale. Pour les prochaines versions publiques :
 
-1. choisir une licence explicite pour le code et la documentation ;
+1. choisir explicitement si le code et la documentation doivent devenir open source, et sous quelle licence ;
 2. vérifier que les exemples et le croquis ne contiennent aucune information personnelle ;
 3. ouvrir ou actualiser les issues à partir de la feuille de route ;
 4. publier les conditions exactes des benchmarks avec leurs résultats ;
