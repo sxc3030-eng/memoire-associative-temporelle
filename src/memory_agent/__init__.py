@@ -1,10 +1,11 @@
-"""Moteur local de memoire associative temporelle.
+"""Memoire associative, pipeline durable et calculateur local borne.
 
-L'API publique tient volontairement dans une seule classe afin que le moteur
-puisse etre utilise aussi bien depuis un terminal que depuis un agent.
+Les composants publics restent separables afin qu'un agent puisse calculer
+sans ecrire dans la memoire, ou utiliser la memoire sans calculateur.
 """
 
 from .memory import MemoryEngine, MemoryIdempotencyConflictError
+from .math_engine import MathEngine, MathEngineError
 from .pipeline import (
     BackgroundConsolidator,
     DurableInjectionQueue,
@@ -17,9 +18,11 @@ __all__ = [
     "BackgroundConsolidator",
     "DurableInjectionQueue",
     "IdempotencyConflictError",
+    "MathEngine",
+    "MathEngineError",
     "MemoryEngine",
     "MemoryIdempotencyConflictError",
     "MemoryPipeline",
     "QueueStateError",
 ]
-__version__ = "0.3.0"
+__version__ = "0.4.0"

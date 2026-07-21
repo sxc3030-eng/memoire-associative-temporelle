@@ -11,6 +11,7 @@ souvenirs et des continuations deja observes par le moteur.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import logging
 import mimetypes
@@ -33,13 +34,13 @@ from memory_agent.json_import import (
     decode_json_import_content,
     prepare_json_import,
 )
+from memory_agent.math_engine import MathEngine, MathEngineError, MathLimits
 from memory_agent.memory import MemoryEngine
 from memory_agent.pipeline import (
     IdempotencyConflictError,
     MemoryPipeline,
     QueueStateError,
 )
-
 
 LOGGER = logging.getLogger("memory_agent.server")
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -53,6 +54,8 @@ MAX_STATIC_BYTES = 2 * 1024 * 1024
 MAX_MEMORIES = 100
 MAX_PIPELINE_TEST_ITEMS = 250
 MAX_CONVERSATION_EPISODE_EVENTS = 32
+MAX_MATH_EXPRESSION_CHARS = MathLimits().max_expression_chars
+MAX_MATH_CATALOG_ITEMS = 500
 
 
 _OBSERVE_RE = re.compile(
@@ -92,6 +95,10 @@ _FORGET_RE = re.compile(
     r"^\s*oublie\s+(?:(?:l['’<])?[ée]v[ée]nement\s+)?"
     r"([A-Za-z0-9][A-Za-z0-9._:-]{0,127})\s*[?!.]?\s*$",
     re.IGNORECASE,
+)
+_CALCULATE_RE = re.compile(
+    r"^\s*(?:calcule|calculer|combien\s+font)\s+(.+?)\s*[?!.]?\s*$",
+    re.IGNORECASE | re.DOTALL,
 )
 
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
@@ -171,6 +178,123 @@ def _clean_text(value: Any, limit: int = 240) -> str:
     if len(text) <= limit:
         return text
     return text[: limit - 1].rstrip() + "…"
+
+
+def _math_error_payload(error: BaseException) -> dict[str, Any]:
+    code = _clean_text(getattr(error, "code", "math_error"), 80) or "math_error"
+    message = _clean_text(getattr(error, "message", None) or error, 500)
+    return {
+        "ok": False,
+        "code": code,
+        "error": message or "Expression mathematique invalide.",
+    }
+
+
+def _math_catalog_version(catalog: dict[str, Any]) -> str:
+    value = catalog.get("version", catalog.get("catalog_version", "v1"))
+    version = unicodedata.normalize("NFKC", str(value)).strip()
+    if not version or len(version) > 100:
+        raise ValueError("Version du catalogue mathematique invalide")
+    return version
+
+
+def _math_catalog_import_items(
+    math_engine: Any,
+) -> tuple[str, list[dict[str, Any]]]:
+    """Build deterministic memory facts from descriptions/rules, never results."""
+
+    catalog = math_engine.catalog()
+    if not isinstance(catalog, dict):
+        raise ValueError("Le catalogue mathematique doit etre un objet")
+    version = _math_catalog_version(catalog)
+    entries = math_engine.catalog_entries()
+    if not isinstance(entries, list):
+        raise ValueError("Les entrees du catalogue doivent former une liste")
+    if len(entries) > MAX_MATH_CATALOG_ITEMS:
+        raise ValueError(
+            f"Le catalogue depasse {MAX_MATH_CATALOG_ITEMS} algorithmes"
+        )
+
+    selected_fields = (
+        "description",
+        "category",
+        "signature",
+        "rule",
+        "rules",
+        "syntax",
+        "formula",
+        "domain",
+        "aliases",
+        "exact",
+        "exactness",
+        "learning_level",
+        "maturity",
+        "returns",
+    )
+    prepared: list[dict[str, Any]] = []
+    seen_names: set[str] = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise ValueError("Une entree du catalogue mathematique est invalide")
+        raw_name = entry.get("name", entry.get("id"))
+        if not isinstance(raw_name, str) or not raw_name.strip():
+            raise ValueError("Un algorithme du catalogue n'a pas de nom")
+        display_name = unicodedata.normalize("NFKC", raw_name).strip()
+        stable_name = display_name.casefold()
+        if len(stable_name) > 200:
+            raise ValueError("Un nom d'algorithme est trop long")
+        if stable_name in seen_names:
+            raise ValueError("Le catalogue contient deux fois le meme algorithme")
+        seen_names.add(stable_name)
+
+        details: list[str] = []
+        for field in selected_fields:
+            if field not in entry or entry[field] in (None, "", [], {}):
+                continue
+            value = entry[field]
+            if isinstance(value, str):
+                encoded = " ".join(value.split())
+            else:
+                encoded = json.dumps(
+                    value,
+                    ensure_ascii=False,
+                    allow_nan=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    default=_json_default,
+                )
+            details.append(f"{field}: {encoded}")
+        if not details:
+            raise ValueError(
+                f"L'algorithme {display_name!r} n'a ni description ni regle"
+            )
+        text = f"Algorithme mathematique {display_name}. " + ". ".join(details)
+        if len(text) > 50_000:
+            raise ValueError("Une description d'algorithme est trop longue")
+        stable_key = f"math-catalog:{version}:{stable_name}"
+        if len(stable_key) > 500:
+            # Preserve the requested readable prefix while bounding DB keys.
+            digest = hashlib.sha256(stable_name.encode("utf-8")).hexdigest()
+            stable_key = f"math-catalog:{version}:{digest}"
+        prepared.append(
+            {
+                "name": display_name,
+                "stable_name": stable_name,
+                "text": text,
+                "idempotency_key": stable_key,
+            }
+        )
+    return version, prepared
+
+
+def _math_result_text(result: dict[str, Any]) -> str:
+    value = result.get(
+        "display",
+        result.get("result", result.get("value", result.get("answer"))),
+    )
+    if value is None:
+        return "Calcul terminé."
+    return f"Résultat : {value}"
 
 
 def _score_text(value: Any) -> str:
@@ -470,6 +594,7 @@ class MemoryHTTPServer(ThreadingHTTPServer):
         engine: MemoryEngine,
         web_root: Path = DEFAULT_WEB_ROOT,
         pipeline: MemoryPipeline | None = None,
+        math_engine: Any | None = None,
     ) -> None:
         host = str(server_address[0]).strip().casefold()
         if host not in _LOOPBACK_HOSTS:
@@ -483,6 +608,7 @@ class MemoryHTTPServer(ThreadingHTTPServer):
         super().__init__(server_address, MemoryRequestHandler)
         self.engine = engine
         self.pipeline = pipeline
+        self.math_engine = math_engine if math_engine is not None else MathEngine()
         self.engine_lock = threading.RLock()
         self.web_root = web_root.resolve()
         self.started_at = time.monotonic()
@@ -747,6 +873,39 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
                 )
             return
 
+        if path == "/api/math/catalog":
+            if self.server.math_engine is None:
+                self._send_json(
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                    {"ok": False, "error": "Moteur mathematique indisponible."},
+                    head_only=head_only,
+                )
+                return
+            try:
+                catalog = self.server.math_engine.catalog()
+                entries = self.server.math_engine.catalog_entries()
+                if not isinstance(catalog, dict) or not isinstance(entries, list):
+                    raise ValueError("Catalogue mathematique invalide")
+                self._send_json(
+                    HTTPStatus.OK,
+                    {"ok": True, "catalog": catalog, "count": len(entries)},
+                    head_only=head_only,
+                )
+            except MathEngineError as error:
+                self._send_json(
+                    HTTPStatus.UNPROCESSABLE_ENTITY,
+                    _math_error_payload(error),
+                    head_only=head_only,
+                )
+            except Exception:
+                LOGGER.exception("Impossible de lire le catalogue mathematique")
+                self._send_json(
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                    {"ok": False, "error": "Catalogue mathematique indisponible."},
+                    head_only=head_only,
+                )
+            return
+
         if path.startswith("/api/pipeline/test/runs/"):
             if self.server.pipeline is None:
                 self._send_json(
@@ -934,7 +1093,9 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
         path = urlsplit(self.path).path
         if path not in {
             "/api/chat",
+            "/api/calculate",
             "/api/import",
+            "/api/math/catalog/import",
             "/api/pipeline/test",
             "/api/pipeline/test/cleanup",
             "/api/pipeline/jobs/status",
@@ -948,9 +1109,19 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
             self._error(HTTPStatus.FORBIDDEN, "Origine non autorisée.")
             return
         payload = self._read_json_object(
-            max_bytes=MAX_CHAT_BODY_BYTES if path == "/api/chat" else MAX_BODY_BYTES
+            max_bytes=(
+                MAX_CHAT_BODY_BYTES
+                if path in {"/api/chat", "/api/calculate"}
+                else MAX_BODY_BYTES
+            )
         )
         if payload is None:
+            return
+        if path == "/api/calculate":
+            self._handle_calculate(payload)
+            return
+        if path == "/api/math/catalog/import":
+            self._handle_math_catalog_import(payload)
             return
         if path == "/api/pipeline/jobs/status":
             self._handle_pipeline_job_status(payload)
@@ -990,6 +1161,11 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
         except IdempotencyConflictError as error:
             self._error(HTTPStatus.CONFLICT, _clean_text(error, 300))
             return
+        except MathEngineError as error:
+            self._send_json(
+                HTTPStatus.UNPROCESSABLE_ENTITY, _math_error_payload(error)
+            )
+            return
         except ValueError as error:
             self._error(HTTPStatus.BAD_REQUEST, _clean_text(error, 300) or "Demande invalide.")
             return
@@ -999,6 +1175,157 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
             return
         status = response.pop("_http_status", HTTPStatus.OK)
         self._send_json(status, {"ok": True, **response})
+
+    def _handle_calculate(self, payload: dict[str, Any]) -> None:
+        expression = payload.get("expression")
+        if not isinstance(expression, str):
+            self._error(HTTPStatus.BAD_REQUEST, "expression doit etre une chaine.")
+            return
+        expression = unicodedata.normalize("NFC", expression).strip()
+        if not expression:
+            self._error(HTTPStatus.BAD_REQUEST, "expression ne peut pas etre vide.")
+            return
+        if len(expression) > MAX_MATH_EXPRESSION_CHARS:
+            self._error(
+                HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                f"expression depasse {MAX_MATH_EXPRESSION_CHARS} caracteres.",
+            )
+            return
+        if self.server.math_engine is None:
+            self._error(
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                "Moteur mathematique indisponible.",
+            )
+            return
+        try:
+            result = self.server.math_engine.evaluate(expression)
+            if not isinstance(result, dict):
+                raise TypeError("Le moteur mathematique doit retourner un objet")
+            _json_bytes(result)
+        except MathEngineError as error:
+            self._send_json(
+                HTTPStatus.UNPROCESSABLE_ENTITY, _math_error_payload(error)
+            )
+            return
+        except Exception:
+            LOGGER.exception("Erreur interne du moteur mathematique")
+            self._error(
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                "Le calcul mathematique a rencontre une erreur interne.",
+            )
+            return
+        self._send_json(
+            HTTPStatus.OK,
+            {
+                "ok": True,
+                "intent": "calculate",
+                "expression": expression,
+                "result": result,
+            },
+        )
+
+    def _handle_math_catalog_import(self, payload: dict[str, Any]) -> None:
+        if payload:
+            self._error(
+                HTTPStatus.BAD_REQUEST,
+                "L'import du catalogue n'accepte aucun parametre.",
+            )
+            return
+        pipeline = self.server.pipeline
+        if pipeline is None:
+            self._error(
+                HTTPStatus.CONFLICT,
+                "Le pipeline d'apprentissage doit etre active pour cet import.",
+            )
+            return
+        if self.server.math_engine is None:
+            self._error(
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                "Moteur mathematique indisponible.",
+            )
+            return
+
+        jobs: list[dict[str, Any]] = []
+        try:
+            version, entries = _math_catalog_import_items(self.server.math_engine)
+            for entry in entries:
+                job = pipeline.enqueue(
+                    entry["text"],
+                    episode_id=(
+                        f"math-catalog:{version}:{entry['stable_name']}"
+                    ),
+                    context={
+                        "category": "math_algorithm",
+                        "algorithm": entry["name"],
+                        "catalog_version": version,
+                    },
+                    source={
+                        "type": "executed",
+                        "origin": "math_engine_catalog",
+                        "catalog_version": version,
+                        "algorithm": entry["name"],
+                        "external": True,
+                        "deterministic": True,
+                    },
+                    idempotency_key=entry["idempotency_key"],
+                    retry_terminal=True,
+                )
+                jobs.append(job)
+        except IdempotencyConflictError as error:
+            self._send_json(
+                HTTPStatus.CONFLICT,
+                {
+                    "ok": False,
+                    "error": _clean_text(error, 400),
+                    "queued_count": sum(
+                        int(bool(job.get("retried")) or not bool(job.get("duplicate")))
+                        for job in jobs
+                    ),
+                    "job_ids": [job["job_id"] for job in jobs],
+                },
+            )
+            return
+        except MathEngineError as error:
+            self._send_json(
+                HTTPStatus.UNPROCESSABLE_ENTITY, _math_error_payload(error)
+            )
+            return
+        except (TypeError, ValueError) as error:
+            self._error(
+                HTTPStatus.UNPROCESSABLE_ENTITY,
+                _clean_text(error, 500) or "Catalogue mathematique invalide.",
+            )
+            return
+        except Exception:
+            LOGGER.exception("Erreur pendant l'import du catalogue mathematique")
+            self._error(
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                "L'import du catalogue mathematique a rencontre une erreur.",
+            )
+            return
+
+        queued_count = sum(
+            int(bool(job.get("retried")) or not bool(job.get("duplicate")))
+            for job in jobs
+        )
+        duplicate_count = sum(
+            int(bool(job.get("duplicate")) and not bool(job.get("retried")))
+            for job in jobs
+        )
+        self._send_json(
+            HTTPStatus.ACCEPTED,
+            {
+                "ok": True,
+                "queued": True,
+                "catalog_version": version,
+                "total_count": len(jobs),
+                "queued_count": queued_count,
+                "duplicate_count": duplicate_count,
+                "deduplicated_count": duplicate_count,
+                "job_ids": [job["job_id"] for job in jobs],
+                "consistency": "visible_apres_consolidation",
+            },
+        )
 
     def _handle_pipeline_job_status(self, payload: dict[str, Any]) -> None:
         pipeline = self.server.pipeline
@@ -1211,6 +1538,33 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
     def _chat(
         self, message: str, *, request_id: str | None = None
     ) -> dict[str, Any]:
+        calculate_match = _CALCULATE_RE.match(message)
+        if calculate_match:
+            expression = calculate_match.group(1).strip()
+            if not expression:
+                raise ValueError("Il manque l'expression a calculer.")
+            if len(expression) > MAX_MATH_EXPRESSION_CHARS:
+                raise ValueError(
+                    f"L'expression depasse {MAX_MATH_EXPRESSION_CHARS} caracteres."
+                )
+            if self.server.math_engine is None:
+                raise RuntimeError("Moteur mathematique indisponible")
+            result = self.server.math_engine.evaluate(expression)
+            if not isinstance(result, dict):
+                raise TypeError("Le moteur mathematique doit retourner un objet")
+            _json_bytes(result)
+            return {
+                "intent": "calculate",
+                "reply": _math_result_text(result),
+                "data": result,
+                "details": {
+                    "intent": "calculate",
+                    "expression": expression,
+                    "algorithm": result.get("algorithm"),
+                    "algorithm_version": result.get("algorithm_version"),
+                },
+            }
+
         observe_match = _OBSERVE_RE.match(message)
         if observe_match:
             fact = observe_match.group(1).strip()

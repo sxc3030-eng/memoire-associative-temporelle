@@ -2,7 +2,7 @@
 
 > Un moteur expérimental de mémoire épisodique, sémantique et explicable pour agents.
 
-**Statut :** prototype local v0.3 fonctionnel — pipeline d'injection asynchrone expérimental, sans revendication de résultat scientifique.
+**Statut :** prototype local v0.4 fonctionnel — mémoire asynchrone et calculatrice déterministe expérimentales, sans revendication de résultat scientifique.
 
 Ce dépôt transforme un croquis initial en une proposition testable : conserver ce qui s'est produit dans l'ordre, consolider les motifs entre plusieurs expériences, puis retrouver ou prolonger une séquence à partir d'indices incomplets.
 
@@ -15,6 +15,8 @@ La mémoire possède deux représentations persistantes complémentaires et une 
 1. un journal d'**occurrences** regroupées en épisodes et ordonnées dans le temps ;
 2. un graphe de **concepts** et de transitions consolidées entre plusieurs épisodes ;
 3. une **mémoire de travail** qui active et classe des chemins pour le rappel ou la prédiction.
+
+La v0.4 ajoute un composant séparé : une **calculatrice mathématique bornée** exécute les expressions avec un catalogue versionné. Calculer ne crée aucun souvenir; seul l'import explicite des descriptions du catalogue passe par le pipeline de mémoire.
 
 ## Essayer le prototype
 
@@ -55,6 +57,34 @@ Souviens-toi que Rio aime courir dans le parc.
 De quoi te souviens-tu au sujet de Rio ?
 Qu'est-ce qui vient après Rio aime ?
 ```
+
+### Calculer sans mémoriser le résultat
+
+La calculatrice peut être utilisée dans son panneau dédié ou directement dans la conversation :
+
+```text
+Calcule 2 + 3 * 4
+Calcule gcd(84, 30)
+Calcule frac(1, 3) + frac(1, 6)
+```
+
+Le moteur analyse une expression bornée, appelle seulement les fonctions autorisées par son catalogue, puis retourne un résultat typé, son caractère exact ou approché, la durée et la validation de la politique d'exécution. Il n'utilise pas `eval`, n'accède ni au système de fichiers ni au réseau et refuse les syntaxes ou tailles hors limites. Cette validation n'est pas un second calcul indépendant.
+
+Trois flux restent volontairement distincts :
+
+1. **calculer** exécute une expression et ne mémorise jamais son résultat ;
+2. **décrire les règles** expose le catalogue versionné des fonctions disponibles ;
+3. **apprendre ces règles** exige le bouton explicite **Importer le catalogue dans la mémoire**, qui crée des tickets idempotents dans le pipeline.
+
+Les contrats locaux sont :
+
+```text
+GET  /api/math/catalog
+POST /api/calculate
+POST /api/math/catalog/import
+```
+
+Voir [Calculateur mathématique et mémoire à quatre niveaux](docs/CALCULATEUR_MATHEMATIQUE.md) pour le langage accepté, les garde-fous et le protocole expérimental.
 
 ### Importer des souvenirs JSON
 
@@ -115,6 +145,17 @@ Le bouton **Tester avec 25 souvenirs** exerce le pipeline réel sans contaminer 
 
 Important : la v0.3 réduit le temps d'attente de l'injecteur et maintient le lecteur disponible; elle ne rend pas encore la consolidation rapide à l'échelle du milliard. `MemoryEngine.observe` reconstruit encore les preuves de l'épisode et rafraîchit des agrégats globaux. Le coût augmente donc fortement avec la taille. La prochaine étape est une consolidation réellement incrémentale, des épisodes bornés et des compteurs de file sans scans globaux. Voir [`docs/BENCHMARK_V03.md`](docs/BENCHMARK_V03.md) pour les mesures et leur interprétation.
 
+### Mesurer la calculatrice
+
+```bash
+python scripts/benchmark_math.py --count 100000
+python scripts/benchmark_math.py --count 1000000 --warmup 5000
+```
+
+Ce benchmark génère des familles d'expressions reproductibles, compare leurs résultats à un chemin de calcul indépendant et rapporte exactitude, erreurs, débit et latences p50/p95/p99. Il vérifie également des expressions interdites et rapporte le nombre d'écritures mémoire, qui doit rester nul. Les résultats dépendent de la machine et doivent être publiés avec les conditions d'exécution; ce README n'en extrapole aucun chiffre.
+
+Le rapport local reproductible de la v0.4 est publié dans [`docs/BENCHMARK_MATH_V04.md`](docs/BENCHMARK_MATH_V04.md) : 1 000 000/1 000 000 résultats corrects dans le jeu généré, aucune erreur et aucune écriture mémoire.
+
 ### Exécuter les tests
 
 ```bash
@@ -133,6 +174,7 @@ python -m unittest discover -s tests -v      # macOS ou Linux
 - la base n'est pas encore chiffrée : ne pas y placer de secrets ;
 - le moteur est lexical et expérimental, pas un assistant général ni un système prêt pour la production ;
 - une réponse produite par l'agent n'est jamais replacée automatiquement dans la file d'apprentissage ; seules une observation extérieure, une action exécutée ou une confirmation explicite peuvent créer un souvenir fiable.
+- un résultat de calcul n'est jamais une preuve d'apprentissage automatique ; seules les règles du catalogue importées volontairement peuvent rejoindre la mémoire.
 
 ## Le problème visé
 
@@ -276,6 +318,19 @@ flowchart TD
 
 Une sortie générée par l'agent ne doit jamais devenir automatiquement une observation. Le renforcement exige une source externe, une action réellement exécutée ou un retour explicite. Cette règle évite qu'une hallucination se transforme en « souvenir » dominant.
 
+## Quatre niveaux d'apprentissage
+
+La v0.4 distingue la réception d'une information de son droit à guider l'agent :
+
+| Niveau | Signification | Exemple |
+|---|---|---|
+| **Reçu** | contenu accepté ou répertorié, pas encore utilisable comme preuve | proposition placée dans une file |
+| **Observé** | fait provenant d'une source extérieure ou d'une action réellement exécutée | résultat confirmé par un outil indépendant |
+| **Consolidé** | motif soutenu par plusieurs observations traçables | transition renforcée avec ses épisodes justificatifs |
+| **Opérationnel** | règle testée, bornée et autorisée à être exécutée par un moteur déterministe | fonction du catalogue mathématique versionné |
+
+Une fonction opérationnelle n'autorise pas l'auto-apprentissage de toutes ses sorties. Le calculateur peut produire un grand nombre de résultats sans agrandir la mémoire; seules une règle importée explicitement ou une nouvelle observation extérieure suit le cycle d'apprentissage.
+
 ## Opérations prévues
 
 | Opération | Rôle | Résultat attendu |
@@ -285,6 +340,8 @@ Une sortie générée par l'agent ne doit jamais devenir automatiquement une obs
 | `predict` | Classer les prochains concepts selon l'historique et le contexte | Candidats, scores relatifs et support |
 | `explain` | Composer l'explication incluse dans un rappel ou une prédiction | Facteurs de score et occurrences sources |
 | `forget` | Supprimer réellement une source au MVP | Agrégats recalculés sans preuve fantôme |
+| `calculate` | Exécuter une expression dans le registre mathématique borné | Résultat exact ou approché, durée et validation de politique, sans écriture mémoire |
+| `catalog` | Décrire les fonctions mathématiques opérationnelles | Catalogue versionné inspectable et import facultatif |
 
 ## Apprentissage et classement
 
@@ -325,6 +382,8 @@ La contribution recherchée n'est pas un composant entièrement inédit pris iso
 
 L'hypothèse à tester est qu'un **petit modèle couplé à une mémoire externe** peut laisser dans la mémoire une partie des faits précis, changeants ou personnels qui seraient autrement difficiles à graver dans l'entraînement. Si cette séparation fonctionne, elle pourrait réduire la quantité de données factuelles à répéter pendant l'entraînement et, pour une couverture factuelle donnée, permettre d'utiliser moins de paramètres.
 
+La calculatrice ajoute une deuxième externalisation possible : un petit modèle pourrait sélectionner une fonction et formuler une expression au lieu d'encoder approximativement chaque procédure et chaque résultat dans ses poids. Cette idée est plausible mais **non démontrée** par le prototype; elle devra être comparée au même modèle sans outil, avec les mêmes tâches, prompts et budgets.
+
 Ce n'est pas l'hypothèse qu'une base de souvenirs remplace un modèle. Les paramètres nécessaires à la langue, au raisonnement, à la représentation des concepts, à la planification et à l'usage correct des souvenirs restent dans le modèle. La mémoire ajoute aussi ses propres coûts : stockage, indexation, sélection du bon contexte, latence et risque de rappeler une mauvaise preuve.
 
 La comparaison minimale doit utiliser les mêmes questions, budgets et corpus de test pour :
@@ -362,6 +421,9 @@ Le premier cas d'usage recommandé est la **mémoire locale d'un agent** : petit
 
 - [Architecture détaillée](docs/ARCHITECTURE.md)
 - [Plan de création du moteur](docs/PLAN_DE_CREATION.md)
+- [Calculateur mathématique et mémoire à quatre niveaux](docs/CALCULATEUR_MATHEMATIQUE.md)
+- [Benchmark du calculateur v0.4](docs/BENCHMARK_MATH_V04.md)
+- [Mesures du pipeline v0.3](docs/BENCHMARK_V03.md)
 - [Croquis à l'origine de l'idée](docs/assets/croquis-original.jpg)
 
 ## Première définition de la réussite
@@ -377,14 +439,17 @@ Le premier jalon est réussi si le moteur peut, de façon déterministe et repro
 7. accepter rapidement une observation dans une file durable et la retrouver après consolidation ;
 8. conserver la lecture disponible pendant que le worker écrit ;
 9. reprendre un travail interrompu sans doubler l'apprentissage.
+10. calculer une expression autorisée avec un résultat typé et validé par la politique du moteur sans écrire dans la mémoire ;
+11. importer explicitement et idempotemment le catalogue des règles, sans importer les résultats produits.
 
 ## Feuille de route courte
 
 - **v0.1 — Fondations :** modèle concept/occurrence, stockage SQLite, rappel et prédiction explicables.
 - **v0.2 — Données :** import JSON en deux temps, idempotence, provenance et exemples interrogeables.
 - **v0.3 — Pipeline séparé :** file durable, tickets `HTTP 202`, worker de consolidation, lecteur distinct et métriques de retard/dédoublonnage/taille.
-- **v0.4 — Échelle :** consolidation incrémentale, benchmarks de charge et politiques de mémoire active/consolidée/archivée.
-- **v0.5 — Modèle :** adaptateur pour petit modèle et expériences comparatives avec les baselines sans mémoire et RAG.
+- **v0.4 — Calcul déterministe :** catalogue versionné, expressions bornées, résultats vérifiables, benchmark sans écriture mémoire et import explicite des règles.
+- **v0.5 — Échelle :** consolidation incrémentale, benchmarks de charge et politiques de mémoire active/consolidée/archivée.
+- **v0.6 — Modèle :** adaptateur pour petit modèle et expériences comparatives avec les baselines sans mémoire, calculatrice et RAG.
 
 Le plan complet, les critères d'acceptation et les tests sont décrits dans [docs/PLAN_DE_CREATION.md](docs/PLAN_DE_CREATION.md).
 

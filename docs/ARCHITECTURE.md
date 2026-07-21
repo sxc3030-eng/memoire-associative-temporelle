@@ -1,6 +1,6 @@
 # Architecture du moteur de mémoire
 
-Ce document formalise l'idée et son assemblage v0.3. Il décrit les responsabilités, le modèle de données, le pipeline asynchrone, les règles d'apprentissage et les garde-fous. Les choix marqués **à valider** devront être testés pendant le prototype.
+Ce document formalise l'idée et son assemblage v0.4. Il décrit les responsabilités, le modèle de données, le pipeline asynchrone, la calculatrice déterministe, les règles d'apprentissage et les garde-fous. Les choix marqués **à valider** devront être testés pendant le prototype.
 
 ## 1. Objectifs d'architecture
 
@@ -15,6 +15,8 @@ Le moteur doit :
 - oublier ou supprimer sans laisser de preuves fantômes ;
 - accepter durablement une observation sans attendre sa consolidation ;
 - laisser le lecteur répondre pendant que le worker d'apprentissage écrit ;
+- exécuter une expression mathématique bornée sans transformer son résultat en souvenir ;
+- exposer un catalogue de règles versionné et ne l'importer qu'après une action explicite ;
 - borner les parcours afin qu'un cycle ne provoque jamais une activation infinie.
 
 ## 2. Non-objectifs de la première version
@@ -24,6 +26,7 @@ Le moteur doit :
 - gérer plusieurs machines ou plusieurs régions ;
 - remplacer la base métier de l'application ;
 - décider seul qu'une corrélation est causale ;
+- fournir un système d'algèbre symbolique général ou exécuter du code arbitraire ;
 - fournir une autonomie générale à un agent.
 
 ## 3. Modèle mental
@@ -49,7 +52,7 @@ flowchart TB
     EP -->|"consolidation traçable"| C1
 ```
 
-Le journal épisodique est la source de vérité des souvenirs consolidés. En v0.3, la file d'injection est la source durable de l'engagement de traitement entre le `HTTP 202` et l'acquittement du worker. Les transitions du graphe sont des agrégats reconstruisibles. Cela permet de corriger ou de supprimer un événement, puis de recalculer exactement son influence.
+Le journal épisodique est la source de vérité des souvenirs consolidés. Depuis la v0.3, la file d'injection est la source durable de l'engagement de traitement entre le `HTTP 202` et l'acquittement du worker. En v0.4, le registre mathématique est la source de vérité des fonctions exécutables; leurs résultats restent éphémères. Les transitions du graphe sont des agrégats reconstruisibles. Cela permet de corriger ou de supprimer un événement, puis de recalculer exactement son influence.
 
 ## 4. Glossaire
 
@@ -69,6 +72,9 @@ Le journal épisodique est la source de vérité des souvenirs consolidés. En v
 | Travail d'injection | Observation durable en attente de livraison au moteur, identifiée par un ticket et une clé d'idempotence. |
 | Worker | Processus d'arrière-plan qui réclame des travaux par lots bornés et les consolide dans la mémoire. |
 | Ticket | Identifiant public permettant de suivre un travail sans republier le contenu du souvenir. |
+| Registre mathématique | Catalogue versionné des constantes, opérateurs et fonctions autorisés par la calculatrice. |
+| Résultat de calcul | Sortie éphémère, typée et validée par la politique du moteur; elle ne constitue jamais automatiquement un événement mémoire. |
+| Règle opérationnelle | Fonction déterministe testée et bornée dans le périmètre déclaré du registre. |
 | Oubli doux | Réduction de pertinence sans suppression de la source. |
 | Suppression forte | Effacement d'une source et recalcul de toutes les preuves et agrégats concernés. |
 
@@ -315,7 +321,7 @@ Pour chaque travail livré par le worker, le moteur exécute encore atomiquement
 8. Mettre à jour les agrégats dans la même transaction.
 9. Retourner les identifiants créés et les changements de support au worker, qui acquitte alors le ticket.
 
-Ce découplage retire le coût d'apprentissage du temps de réponse de l'injecteur, mais ne rend pas encore le calcul incrémental à l'intérieur de `MemoryEngine`. Chaque observation reconstruit encore les preuves de son épisode et rafraîchit les agrégats globaux; le débit diminue donc avec la taille et le backlog finirait par diverger à l'échelle du milliard. L'interface borne les épisodes conversationnels à 32 observations, mais la suppression du rafraîchissement global reste un prérequis de v0.4 avant toute extrapolation massive.
+Ce découplage retire le coût d'apprentissage du temps de réponse de l'injecteur, mais ne rend pas encore le calcul incrémental à l'intérieur de `MemoryEngine`. Chaque observation reconstruit encore les preuves de son épisode et rafraîchit les agrégats globaux; le débit diminue donc avec la taille et le backlog finirait par diverger à l'échelle du milliard. L'interface borne les épisodes conversationnels à 32 observations, mais la suppression du rafraîchissement global reste un prérequis d'une future version consacrée à l'échelle avant toute extrapolation massive.
 
 ### Runs synthétiques sans contamination
 
@@ -611,7 +617,50 @@ Les métriques publiques du pipeline comprennent au minimum : travaux `pending`,
 
 La v0.3 garde encore le payload d'un ticket ordinaire terminé afin de permettre une relivraison explicite après oubli. Les tickets synthétiques, eux, sont purgés après le nettoyage serveur; seul leur bilan de run demeure. Le résultat technique est compacté aux seuls identifiants et drapeaux, ce qui évite une troisième copie. Une politique de rétention/archivage du journal et des compteurs incrémentaux remplacera les scans de statut avant les essais à très grande échelle.
 
-## 17. Contrat d'API conceptuel
+## 17. Calculatrice déterministe v0.4
+
+La calculatrice est un outil voisin de la mémoire, pas une nouvelle table de souvenirs. Elle sépare le langage d'expression, le registre de règles exécutables et le pipeline d'apprentissage :
+
+```mermaid
+flowchart LR
+    U["Expression ou commande Calcule"] --> P["Analyse syntaxique bornée"]
+    P --> V{"Nœuds, tailles et fonctions autorisés ?"}
+    V -->|"non"| E["Erreur contrôlée"]
+    V -->|"oui"| R["Registre mathématique versionné"]
+    R --> X["Exécution déterministe"]
+    X --> O["Résultat typé, durée et validation de politique"]
+    O -.->|"aucune écriture automatique"| M[("Mémoire associative")]
+    R -->|"import humain explicite"| Q[("File durable")]
+    Q --> W["Worker de consolidation"]
+    W --> M
+```
+
+Le parseur accepte uniquement les littéraux et constructions déclarés par le langage borné. Il parcourt l'arbre syntaxique sans `eval`, refuse les accès arbitraires, imports, affectations et fonctions absentes du registre, puis applique des quotas de longueur, profondeur, opérations, collections et taille de résultat. Une erreur de syntaxe, de domaine ou de quota est une réponse métier bornée; elle ne doit pas faire tomber le serveur.
+
+Le résultat contient l'expression canonique, une valeur sérialisable, un affichage stable, le type, le drapeau exact/approché, les fonctions utilisées, le nombre d'opérations, la durée et une validation de politique. Cette trace atteste le passage par l'AST autorisé et les quotas, sans prétendre être un second oracle. Elle est retournée au client mais n'est pas livrée à `MemoryEngine.observe`. L'invariant à tester est donc :
+
+```text
+nombre_calculs quelconque → écritures_mémoire = 0
+```
+
+L'import du catalogue est une autre opération. Il transforme chaque description de règle en un travail idempotent portant une clé dérivée de la version du catalogue et du nom stable de la fonction. La provenance indique une règle exécutée par le moteur mathématique. Réimporter la même version retrouve les tickets existants; cela ne crée ni nouvelle preuve ni copie des résultats calculés.
+
+### Quatre niveaux de confiance et d'usage
+
+| Niveau | Critère architectural | Effet autorisé |
+|---|---|---|
+| Reçu | contenu accepté ou répertorié | aucun guidage fiable avant validation |
+| Observé | source extérieure ou action réellement exécutée avec provenance | peut devenir une preuve contextualisée |
+| Consolidé | plusieurs preuves traçables soutiennent le même motif | peut contribuer au rappel et au classement |
+| Opérationnel | règle déterministe testée, versionnée et bornée | peut être exécutée dans le calculateur déclaré |
+
+Le niveau opérationnel s'applique à la règle dans son périmètre testé, pas à chaque sortie comme connaissance générale. Un résultat ne remonte vers les niveaux observé ou consolidé que s'il revient plus tard comme observation indépendante avec sa provenance.
+
+Le benchmark `scripts/benchmark_math.py` génère des expressions déterministes, les compare à un chemin attendu indépendant, mesure exactitude, erreurs, débit et latences p50/p95/p99, puis vérifie des refus adversariaux et l'absence d'écriture mémoire. Aucun résultat de machine n'est fixé dans cette architecture; les rapports doivent publier la commande, la version du catalogue, la machine et les limites utilisées.
+
+La spécification détaillée se trouve dans [CALCULATEUR_MATHEMATIQUE.md](CALCULATEUR_MATHEMATIQUE.md).
+
+## 18. Contrat d'API conceptuel
 
 ```text
 POST   /observe
@@ -620,17 +669,22 @@ POST   /predict
 POST   /forget
 POST   /api/import
 POST   /api/chat
+POST   /api/calculate
+POST   /api/math/catalog/import
 POST   /api/pipeline/jobs/status
 POST   /api/pipeline/test
 POST   /api/pipeline/test/cleanup
 GET    /api/health
+GET    /api/math/catalog
 GET    /api/pipeline
 GET    /api/pipeline/jobs/<job_id>
 ```
 
-`/recall` et `/predict` incluent toujours leur explication. En mode asynchrone, une commande de mémorisation par `/api/chat` et un `commit` de `/api/import` retournent `HTTP 202 Accepted`; un code `202` signifie « durablement mis en file », jamais « déjà appris ». La route de ticket et la route de statut groupé exposent l'état et le résultat technique minimal, sans republier le souvenir. Le client fournit un `request_id` stable pour qu'un nouvel envoi après perte de l'accusé ne double pas l'apprentissage. Le test visible utilise une provenance `generated`; son run atomique est ensuite supervisé et nettoyé par le serveur, indépendamment de l'onglet, tandis que son bilan persiste. Les noms conceptuels pourront changer.
+`/recall` et `/predict` incluent toujours leur explication. `POST /api/calculate` et la commande conversationnelle `Calcule ...` retournent un calcul sans écriture mémoire. `GET /api/math/catalog` inspecte les règles disponibles. Seul `POST /api/math/catalog/import`, déclenché explicitement, envoie leurs descriptions vers la file durable.
 
-## 18. Risques techniques principaux
+En mode asynchrone, une commande de mémorisation par `/api/chat`, un `commit` de `/api/import` et l'import explicite du catalogue retournent `HTTP 202 Accepted`; un code `202` signifie « durablement mis en file », jamais « déjà appris ». La route de ticket et la route de statut groupé exposent l'état et le résultat technique minimal, sans republier le souvenir. Le client fournit un `request_id` stable pour qu'un nouvel envoi après perte de l'accusé ne double pas l'apprentissage. Le test visible utilise une provenance `generated`; son run atomique est ensuite supervisé et nettoyé par le serveur, indépendamment de l'onglet, tandis que son bilan persiste. Les noms conceptuels pourront changer.
+
+## 19. Risques techniques principaux
 
 | Risque | Réponse initiale |
 |---|---|
@@ -652,8 +706,10 @@ GET    /api/pipeline/jobs/<job_id>
 | Contenu sensible dans la file | Fichier local non chiffré, route publique expurgée et avertissement explicite |
 | Auto-apprentissage des réponses | Aucune réinjection automatique; nouvelle observation indépendante et provenance obligatoire |
 | Test synthétique abandonné par le client | Run et tickets atomiques, superviseur serveur, reprise idempotente et bilan persistant |
+| Expression mathématique hostile ou trop coûteuse | AST autorisé explicitement, quotas structurels et numériques, aucune exécution de code arbitraire |
+| Résultats de calcul gonflant ou contaminant la mémoire | aucune écriture depuis `calculate`; import séparé et idempotent des seules règles du catalogue |
 
-## 19. Décisions à prendre par expérimentation
+## 20. Décisions à prendre par expérimentation
 
 1. Chronologie durable ou véritable tampon circulaire ?
 2. Frontière automatique ou explicite des épisodes ?
@@ -667,16 +723,18 @@ GET    /api/pipeline/jobs/<job_id>
 10. Quand ajouter des embeddings sans perdre l'explicabilité ?
 11. Quelle taille de lot maximise le débit du worker sans dégrader le p95 du lecteur ?
 12. À quel retard faut-il ralentir les producteurs, ajouter un worker ou changer de stockage ?
+13. Quelles familles mathématiques justifient un registre plus riche sans élargir dangereusement le langage ?
+14. Quand compiler ou vectoriser des expressions déjà validées plutôt que les interpréter une à une ?
 
 Le [plan de création](PLAN_DE_CREATION.md) transforme ces décisions en jalons et en expériences mesurables.
 
-## 20. Hypothèse petit modèle + mémoire externe
+## 21. Hypothèse petit modèle + mémoire externe
 
 ### Hypothèse falsifiable
 
 Un petit modèle doté d'une mémoire externe pourrait ne pas avoir à mémoriser dans ses poids tous les faits précis, personnels ou fréquemment mis à jour. Cela peut potentiellement réduire la quantité de données factuelles répétées pendant l'entraînement et le nombre de paramètres nécessaires pour atteindre une couverture factuelle ciblée.
 
-La mémoire ne remplace cependant pas les paramètres qui portent la langue, le raisonnement, les représentations générales, la planification et la capacité de choisir et d'utiliser une preuve. Elle déplace une partie du problème vers l'ingestion, le rappel, la taille disque, les tokens de contexte et la latence. La v0.3 ne démontre donc aucune réduction de paramètres; elle fournit seulement le pipeline nécessaire pour la mesurer.
+La mémoire ne remplace cependant pas les paramètres qui portent la langue, le raisonnement, les représentations générales, la planification et la capacité de choisir et d'utiliser une preuve. La calculatrice ne remplace pas non plus la capacité du modèle à reconnaître une tâche, choisir le bon outil et formuler une expression correcte. Ces composants déplacent une partie du problème vers l'ingestion, le rappel, l'exécution, la taille disque, les tokens de contexte et la latence. La v0.4 ne démontre donc aucune réduction de paramètres; elle fournit seulement des composants séparés et des protocoles pour la mesurer.
 
 ### Expériences comparatives requises
 
@@ -688,7 +746,8 @@ Construire un corpus gelé avec quatre familles séparées : faits stables prés
 4. petit modèle avec RAG vectoriel ;
 5. petit modèle avec mémoire associative temporelle ;
 6. ablation du petit modèle avec la même mémoire mais sans provenance ou sans ordre temporel.
+7. même petit modèle avec calculatrice déterministe, puis avec calculatrice et mémoire, sur un lot mathématique séparé.
 
-Faire varier séparément la taille du modèle, la quantité de données factuelles d'entraînement et la quantité de mémoire externe. Empêcher toute contamination entre apprentissage, mémoire injectée et test. Rapporter : exactitude et calibration, taux d'hallucination, qualité de langue, réussite du raisonnement, adaptation à une mise à jour, oubli ciblé, nombre de paramètres, tokens et données d'entraînement, latences p50/p95, débit d'injection, retard de consolidation, mémoire vive et taille disque.
+Faire varier séparément la taille du modèle, la quantité de données factuelles d'entraînement, la quantité de mémoire externe et la disponibilité du calculateur. Empêcher toute contamination entre apprentissage, mémoire injectée et test. Pour le lot mathématique, distinguer sélection correcte de l'outil, validité de l'expression, exactitude du résultat et absence d'écriture mémoire. Rapporter : exactitude et calibration, taux d'hallucination, qualité de langue, réussite du raisonnement, adaptation à une mise à jour, oubli ciblé, nombre de paramètres, tokens et données d'entraînement, latences p50/p95, débit d'injection, retard de consolidation, mémoire vive et taille disque.
 
 Le signal favorable attendu est qu'à capacité de langue et de raisonnement comparable, le petit modèle avec mémoire dépasse le même petit modèle sans mémoire sur les faits et les mises à jour, puis approche une baseline plus grande avec moins de paramètres ou moins de données factuelles. Une amélioration provenant seulement d'un contexte plus long, une baisse sur le raisonnement ou un coût total déplacé mais supérieur invalide la revendication forte.

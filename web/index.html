@@ -50,6 +50,7 @@
     }
 
     button,
+    input,
     textarea {
       font: inherit;
     }
@@ -672,6 +673,314 @@
       margin-top: 10px;
     }
 
+    .math-panel {
+      grid-column: 1 / -1;
+      padding: clamp(22px, 3vw, 34px);
+    }
+
+    .math-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 22px;
+      margin-bottom: 22px;
+    }
+
+    .math-header .intro {
+      max-width: 820px;
+    }
+
+    .math-memory-note {
+      max-width: 330px;
+      margin: 0;
+      padding: 10px 12px;
+      border: 1px solid rgba(217, 137, 67, 0.28);
+      border-radius: 12px;
+      color: #76512f;
+      background: var(--amber-pale);
+      font-size: 0.74rem;
+      font-weight: 700;
+      line-height: 1.45;
+    }
+
+    .math-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .math-workbench,
+    .math-catalog {
+      min-width: 0;
+      padding: clamp(17px, 2.4vw, 24px);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--surface-solid);
+    }
+
+    .math-label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+
+    .math-expression-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 9px;
+    }
+
+    .math-expression {
+      width: 100%;
+      min-height: 46px;
+      padding: 10px 13px;
+      border: 1px solid var(--line-strong);
+      border-radius: 12px;
+      color: var(--ink);
+      background: #fff;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      line-height: 1.4;
+      transition: border-color 160ms ease, box-shadow 160ms ease;
+    }
+
+    .math-expression:focus {
+      border-color: #76aa94;
+      outline: 0;
+      box-shadow: 0 0 0 4px rgba(31, 107, 85, 0.09);
+    }
+
+    .math-expression::placeholder,
+    .catalog-search::placeholder {
+      color: #909895;
+    }
+
+    .math-help {
+      margin: 7px 2px 0;
+      color: var(--ink-soft);
+      font-size: 0.7rem;
+      line-height: 1.45;
+    }
+
+    .math-examples {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 15px;
+    }
+
+    .math-example {
+      min-height: 32px;
+      padding: 6px 10px;
+      border: 1px solid #d5ddd5;
+      border-radius: 999px;
+      color: var(--green-dark);
+      background: #f6faf7;
+      cursor: pointer;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+
+    .math-example:hover {
+      border-color: #a9c8b9;
+      background: var(--green-pale);
+    }
+
+    .math-result-card {
+      margin-top: 18px;
+      padding: clamp(16px, 2.2vw, 22px);
+      border: 1px solid rgba(31, 107, 85, 0.25);
+      border-radius: 16px;
+      background: #f4faf6;
+    }
+
+    .math-result-card[data-state="error"] {
+      border-color: rgba(169, 77, 69, 0.35);
+      color: #743f3a;
+      background: #fff8f6;
+    }
+
+    .math-result-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .math-result-kind {
+      margin: 0;
+      font-size: 0.72rem;
+      font-weight: 850;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .math-exact-badge {
+      padding: 4px 8px;
+      border-radius: 999px;
+      color: var(--green-dark);
+      background: var(--green-pale);
+      font-size: 0.65rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .math-exact-badge[data-exact="false"] {
+      color: #8b5528;
+      background: var(--amber-pale);
+    }
+
+    .math-result-value {
+      margin: 0;
+      overflow-x: auto;
+      color: var(--ink);
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: clamp(1.45rem, 4vw, 2.35rem);
+      font-weight: 760;
+      line-height: 1.25;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .math-result-secondary {
+      margin: 9px 0 0;
+      color: var(--ink-soft);
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 0.76rem;
+      overflow-wrap: anywhere;
+    }
+
+    .math-result-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin: 14px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .math-result-meta li {
+      padding: 5px 8px;
+      border-radius: 999px;
+      color: var(--ink-soft);
+      background: rgba(255, 255, 255, 0.78);
+      font-size: 0.67rem;
+      font-weight: 720;
+    }
+
+    .math-result-note,
+    .catalog-status {
+      margin: 11px 0 0;
+      color: var(--ink-soft);
+      font-size: 0.7rem;
+      line-height: 1.45;
+    }
+
+    .math-error-text {
+      margin: 0;
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+
+    .math-catalog-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 13px;
+    }
+
+    .math-catalog h3 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: 1.05rem;
+    }
+
+    .catalog-count {
+      flex: 0 0 auto;
+      padding: 5px 8px;
+      border-radius: 999px;
+      color: var(--green-dark);
+      background: var(--green-pale);
+      font-size: 0.66rem;
+      font-weight: 850;
+    }
+
+    .catalog-search {
+      width: 100%;
+      min-height: 40px;
+      padding: 8px 11px;
+      border: 1px solid var(--line-strong);
+      border-radius: 11px;
+      color: var(--ink);
+      background: #fff;
+      font-size: 0.78rem;
+    }
+
+    .catalog-functions {
+      display: grid;
+      max-height: 310px;
+      gap: 7px;
+      margin: 12px 0 0;
+      padding: 0;
+      overflow-y: auto;
+      list-style: none;
+      scrollbar-color: #cad1ca transparent;
+      scrollbar-width: thin;
+    }
+
+    .catalog-function {
+      padding: 10px 11px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: #fafaf6;
+    }
+
+    .catalog-function-top {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 9px;
+    }
+
+    .catalog-signature {
+      color: var(--ink);
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 0.73rem;
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+
+    .catalog-category {
+      flex: 0 0 auto;
+      color: var(--green-dark);
+      font-size: 0.61rem;
+      font-weight: 800;
+    }
+
+    .catalog-description {
+      margin: 5px 0 0;
+      color: var(--ink-soft);
+      font-size: 0.68rem;
+      line-height: 1.4;
+    }
+
+    .catalog-empty {
+      padding: 18px 10px;
+      color: var(--ink-soft);
+      text-align: center;
+      font-size: 0.75rem;
+      line-height: 1.45;
+    }
+
+    .catalog-import-button {
+      width: 100%;
+      margin-top: 14px;
+    }
+
     .stat-card {
       min-height: 91px;
       padding: 13px;
@@ -1222,6 +1531,10 @@
       .memory-panel {
         max-height: 680px;
       }
+
+      .math-layout {
+        grid-template-columns: 1fr;
+      }
     }
 
     @media (max-width: 1180px) and (min-width: 621px) {
@@ -1276,6 +1589,27 @@
       .panel-header {
         gap: 10px;
         padding: 20px 17px 14px;
+      }
+
+      .math-panel {
+        padding: 18px 14px;
+      }
+
+      .math-header {
+        display: block;
+      }
+
+      .math-memory-note {
+        max-width: none;
+        margin-top: 13px;
+      }
+
+      .math-expression-row {
+        grid-template-columns: 1fr;
+      }
+
+      .math-expression-row .primary-button {
+        width: 100%;
       }
 
       .intro {
@@ -1496,6 +1830,68 @@
           </div>
         </div>
       </aside>
+
+      <section class="panel math-panel" aria-labelledby="math-title">
+        <header class="math-header">
+          <div>
+            <p class="eyebrow">Calcul vérifiable</p>
+            <h2 id="math-title">Calculatrice mathématique</h2>
+            <p class="intro">Écrivez une expression : le moteur choisit les fonctions nécessaires, calcule le résultat et indique comment il l’a vérifié.</p>
+          </div>
+          <p class="math-memory-note"><strong>Calcul séparé de la mémoire.</strong> Appuyer sur « Calculer » ne mémorise jamais l’expression ni son résultat.</p>
+        </header>
+
+        <div class="math-layout">
+          <div class="math-workbench">
+            <form id="math-form">
+              <label class="math-label" for="math-expression">Expression à calculer</label>
+              <div class="math-expression-row">
+                <input class="math-expression" id="math-expression" name="expression" type="text" maxlength="1024" autocomplete="off" spellcheck="false" inputmode="text" placeholder="Ex. : frac(1, 3) + frac(1, 6)" aria-describedby="math-expression-help" required>
+                <button class="primary-button" id="math-calculate" type="submit">Calculer</button>
+              </div>
+              <p class="math-help" id="math-expression-help">Utilisez les nombres, parenthèses et fonctions du catalogue. Entrée lance le calcul.</p>
+            </form>
+
+            <div class="math-examples" aria-label="Exemples de calculs">
+              <button class="math-example" type="button" data-math-expression="12 * (7 + 3)">12 × (7 + 3)</button>
+              <button class="math-example" type="button" data-math-expression="frac(1, 3) + frac(1, 6)">frac(1, 3) + frac(1, 6)</button>
+              <button class="math-example" type="button" data-math-expression="sqrt(2)">sqrt(2)</button>
+              <button class="math-example" type="button" data-math-expression="gcd(84, 30)">gcd(84, 30)</button>
+            </div>
+
+            <section class="math-result-card" id="math-result" data-state="success" role="status" aria-live="polite" aria-atomic="true" hidden>
+              <div id="math-result-success">
+                <div class="math-result-heading">
+                  <p class="math-result-kind" id="math-result-kind">Résultat</p>
+                  <span class="math-exact-badge" id="math-exact-badge" data-exact="true">Exact</span>
+                </div>
+                <pre class="math-result-value" id="math-result-value"></pre>
+                <p class="math-result-secondary" id="math-result-secondary" hidden></p>
+                <ul class="math-result-meta" id="math-result-meta" aria-label="Détails de vérification"></ul>
+                <p class="math-result-note">Ce résultat reste temporaire : il n’est pas ajouté à la mémoire.</p>
+              </div>
+              <p class="math-error-text" id="math-error" role="alert" hidden></p>
+            </section>
+          </div>
+
+          <aside class="math-catalog" aria-labelledby="math-catalog-title">
+            <div class="math-catalog-header">
+              <div>
+                <h3 id="math-catalog-title">Fonctions disponibles</h3>
+                <p class="math-help" id="math-catalog-version">Chargement du catalogue…</p>
+              </div>
+              <span class="catalog-count" id="math-catalog-count" aria-label="Nombre de fonctions">—</span>
+            </div>
+            <label class="visually-hidden" for="math-catalog-search">Rechercher une fonction</label>
+            <input class="catalog-search" id="math-catalog-search" type="search" autocomplete="off" placeholder="Rechercher une fonction…" disabled>
+            <ul class="catalog-functions" id="math-catalog-functions" aria-live="polite" aria-busy="true">
+              <li class="catalog-empty">Chargement des fonctions mathématiques…</li>
+            </ul>
+            <button class="secondary-button catalog-import-button" id="math-catalog-import" type="button" disabled>Importer le catalogue dans la mémoire</button>
+            <p class="catalog-status" id="math-catalog-status" role="status" aria-live="polite">L’import est facultatif et distinct des calculs.</p>
+          </aside>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -1630,7 +2026,24 @@
         pipelineFailed: document.getElementById("pipeline-failed"),
         pipelineMetrics: document.getElementById("pipeline-metrics"),
         pipelineLastError: document.getElementById("pipeline-last-error"),
-        pipelineTest: document.getElementById("pipeline-test")
+        pipelineTest: document.getElementById("pipeline-test"),
+        mathForm: document.getElementById("math-form"),
+        mathExpression: document.getElementById("math-expression"),
+        mathCalculate: document.getElementById("math-calculate"),
+        mathResult: document.getElementById("math-result"),
+        mathResultSuccess: document.getElementById("math-result-success"),
+        mathResultKind: document.getElementById("math-result-kind"),
+        mathExactBadge: document.getElementById("math-exact-badge"),
+        mathResultValue: document.getElementById("math-result-value"),
+        mathResultSecondary: document.getElementById("math-result-secondary"),
+        mathResultMeta: document.getElementById("math-result-meta"),
+        mathError: document.getElementById("math-error"),
+        mathCatalogVersion: document.getElementById("math-catalog-version"),
+        mathCatalogCount: document.getElementById("math-catalog-count"),
+        mathCatalogSearch: document.getElementById("math-catalog-search"),
+        mathCatalogFunctions: document.getElementById("math-catalog-functions"),
+        mathCatalogImport: document.getElementById("math-catalog-import"),
+        mathCatalogStatus: document.getElementById("math-catalog-status")
       };
 
       const importStages = {
@@ -1649,6 +2062,12 @@
         preview: null,
         busy: false,
         lastAction: null
+      };
+
+      const mathState = {
+        catalog: null,
+        calculating: false,
+        importing: false
       };
 
       const TEST_RUN_TRACKING_KEY = "memoire-associative-temporelle:test-runs:v1";
@@ -1755,6 +2174,328 @@
           return payload;
         } finally {
           window.clearTimeout(timer);
+        }
+      }
+
+      function mathText(value) {
+        if (value === undefined || value === null || value === "") return null;
+        if (["string", "number", "bigint", "boolean"].includes(typeof value)) return String(value);
+        try {
+          return JSON.stringify(value);
+        } catch (error) {
+          return String(value);
+        }
+      }
+
+      function normalizeSearchText(value) {
+        return String(value || "")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase()
+          .trim();
+      }
+
+      function normalizeMathCatalog(payload) {
+        const source = payload?.catalog && typeof payload.catalog === "object"
+          ? payload.catalog
+          : payload && typeof payload === "object"
+            ? payload
+            : {};
+        const rawFunctions = Array.isArray(source.functions)
+          ? source.functions
+          : Array.isArray(source.algorithms)
+            ? source.algorithms
+          : Array.isArray(source.items)
+            ? source.items
+            : [];
+        const functions = rawFunctions.map((item, index) => {
+          if (typeof item === "string" || typeof item === "number") {
+            const name = String(item);
+            return {
+              name,
+              category: "Fonction",
+              signature: name,
+              description: "Fonction mathématique disponible.",
+              exact: null,
+              searchText: normalizeSearchText(name)
+            };
+          }
+          if (!item || typeof item !== "object") return null;
+          const name = mathText(item.name ?? item.id ?? item.function) || `Fonction ${index + 1}`;
+          const category = mathText(item.category ?? item.group ?? item.family) || "Fonction";
+          const signature = mathText(item.signature ?? item.syntax ?? item.usage) || `${name}(…)`;
+          const description = mathText(item.description ?? item.summary ?? item.help) || "Fonction mathématique disponible.";
+          const exact = typeof item.exact === "boolean" ? item.exact : null;
+          return {
+            name,
+            category,
+            signature,
+            description,
+            exact,
+            searchText: normalizeSearchText(`${name} ${category} ${signature} ${description}`)
+          };
+        }).filter(Boolean);
+        const count = numericCount(source.count ?? source.function_count ?? payload?.count) ?? functions.length;
+        const categories = source.categories;
+        const categoryCount = Array.isArray(categories)
+          ? categories.length
+          : categories && typeof categories === "object"
+            ? Object.keys(categories).length
+            : numericCount(categories) ?? 0;
+        return {
+          version: mathText(source.version) || "",
+          count,
+          categoryCount,
+          functions
+        };
+      }
+
+      function renderMathCatalog() {
+        const catalog = mathState.catalog;
+        els.mathCatalogFunctions.replaceChildren();
+        if (!catalog) return;
+
+        const query = normalizeSearchText(els.mathCatalogSearch.value);
+        const matches = catalog.functions.filter(item => !query || item.searchText.includes(query));
+        const visible = matches.slice(0, 30);
+
+        visible.forEach(item => {
+          const row = document.createElement("li");
+          row.className = "catalog-function";
+          const top = document.createElement("div");
+          top.className = "catalog-function-top";
+          const signature = document.createElement("span");
+          signature.className = "catalog-signature";
+          signature.textContent = item.signature;
+          const category = document.createElement("span");
+          category.className = "catalog-category";
+          category.textContent = item.exact === true ? `${item.category} · exact` : item.category;
+          top.append(signature, category);
+          const description = document.createElement("p");
+          description.className = "catalog-description";
+          description.textContent = item.description;
+          row.append(top, description);
+          els.mathCatalogFunctions.appendChild(row);
+        });
+
+        if (!matches.length) {
+          const empty = document.createElement("li");
+          empty.className = "catalog-empty";
+          empty.textContent = query
+            ? "Aucune fonction ne correspond à cette recherche."
+            : "Le catalogue ne contient encore aucune fonction à afficher.";
+          els.mathCatalogFunctions.appendChild(empty);
+        } else if (matches.length > visible.length) {
+          const more = document.createElement("li");
+          more.className = "catalog-empty";
+          more.textContent = `${formatNumber(matches.length - visible.length)} autre(s) fonction(s) : précisez la recherche pour les afficher.`;
+          els.mathCatalogFunctions.appendChild(more);
+        }
+        els.mathCatalogFunctions.setAttribute("aria-busy", "false");
+      }
+
+      async function loadMathCatalog() {
+        els.mathCatalogFunctions.setAttribute("aria-busy", "true");
+        els.mathCatalogSearch.disabled = true;
+        els.mathCatalogImport.disabled = true;
+        try {
+          const payload = await apiFetch("/api/math/catalog", { timeoutMs: 10000 });
+          const catalog = normalizeMathCatalog(payload);
+          mathState.catalog = catalog;
+          els.mathCatalogCount.textContent = formatNumber(catalog.count);
+          els.mathCatalogVersion.textContent = [
+            catalog.version ? `Version ${catalog.version}` : null,
+            catalog.categoryCount ? `${formatNumber(catalog.categoryCount)} catégorie${catalog.categoryCount > 1 ? "s" : ""}` : null
+          ].filter(Boolean).join(" · ") || "Catalogue prêt";
+          els.mathCatalogSearch.disabled = catalog.functions.length === 0;
+          els.mathCatalogImport.disabled = catalog.count === 0;
+          els.mathCatalogStatus.textContent = "L’import est facultatif et distinct des calculs.";
+          renderMathCatalog();
+        } catch (error) {
+          mathState.catalog = null;
+          els.mathCatalogCount.textContent = "—";
+          els.mathCatalogVersion.textContent = "Catalogue indisponible";
+          els.mathCatalogFunctions.replaceChildren();
+          const failure = document.createElement("li");
+          failure.className = "catalog-empty";
+          failure.textContent = "Impossible de charger les fonctions pour le moment. Les calculs simples peuvent tout de même être essayés.";
+          els.mathCatalogFunctions.appendChild(failure);
+          els.mathCatalogFunctions.setAttribute("aria-busy", "false");
+          els.mathCatalogStatus.textContent = "Le catalogue pourra être rechargé à la prochaine ouverture.";
+        }
+      }
+
+      function calculationPayload(payload) {
+        if (payload?.calculation && typeof payload.calculation === "object") return payload.calculation;
+        if (payload?.result && typeof payload.result === "object" && !Array.isArray(payload.result)) return payload.result;
+        return payload && typeof payload === "object" ? payload : null;
+      }
+
+      function verificationLabel(verification) {
+        if (!verification || typeof verification !== "object") return null;
+        const status = normalizeSearchText(verification.status);
+        let label = "Vérification effectuée";
+        if (["ok", "passed", "verified", "success", "valide", "valid"].includes(status)) {
+          label = "Vérification réussie";
+        } else if (["policy_validated", "validated_by_policy"].includes(status)) {
+          label = "Politique de calcul validée";
+        } else if (["failed", "failure", "error", "invalid", "echec"].includes(status)) {
+          label = "Vérification échouée";
+        } else if (verification.status) {
+          label = `Vérification : ${mathText(verification.status)}`;
+        }
+        const method = mathText(verification.method);
+        return method ? `${label} · ${method}` : label;
+      }
+
+      function renderMathCalculation(payload) {
+        const calculation = calculationPayload(payload);
+        if (!calculation) throw new Error("Le moteur n’a retourné aucun résultat.");
+        const rawResult = calculation.result ?? calculation.value ?? calculation.answer;
+        const display = mathText(calculation.display) || mathText(rawResult);
+        if (!display) throw new Error("Le résultat reçu est vide.");
+
+        const resultType = normalizeSearchText(calculation.result_type ?? calculation.type);
+        const inferredExact = ["exact", "integer", "entier", "rational", "fraction"].some(value => resultType.includes(value))
+          || (typeof rawResult === "number" && Number.isInteger(rawResult));
+        const exact = typeof calculation.exact === "boolean" ? calculation.exact : inferredExact;
+        els.mathResult.dataset.state = "success";
+        els.mathResult.setAttribute("role", "status");
+        els.mathResultSuccess.hidden = false;
+        els.mathError.hidden = true;
+        els.mathResultKind.textContent = exact ? "Résultat exact" : "Résultat approché";
+        els.mathExactBadge.dataset.exact = String(exact);
+        els.mathExactBadge.textContent = exact ? "Exact" : "Approché";
+        els.mathResultValue.textContent = display;
+
+        const approximation = mathText(
+          calculation.approximation
+          ?? calculation.approximate
+          ?? calculation.decimal
+          ?? calculation.numeric_value
+        );
+        els.mathResultSecondary.hidden = !approximation || approximation === display;
+        els.mathResultSecondary.textContent = approximation && approximation !== display
+          ? `Valeur approchée : ${approximation}`
+          : "";
+
+        els.mathResultMeta.replaceChildren();
+        const meta = [];
+        const duration = Number(calculation.duration_ms);
+        if (Number.isFinite(duration) && duration >= 0) {
+          meta.push(`Durée : ${new Intl.NumberFormat("fr-CA", { maximumFractionDigits: 3 }).format(duration)} ms`);
+        }
+        const verification = verificationLabel(calculation.verification);
+        if (verification) meta.push(verification);
+        const operations = numericCount(calculation.operations_count);
+        if (operations !== null) meta.push(`${formatNumber(operations)} opération${operations === 1 ? "" : "s"}`);
+        const rawFunctions = calculation.functions_used ?? calculation.functions;
+        const functions = Array.isArray(rawFunctions)
+          ? rawFunctions.map(item => mathText(item?.name ?? item)).filter(Boolean)
+          : mathText(rawFunctions)
+            ? [mathText(rawFunctions)]
+            : [];
+        if (functions.length) meta.push(`Fonctions : ${functions.join(", ")}`);
+        meta.forEach(value => {
+          const item = document.createElement("li");
+          item.textContent = value;
+          els.mathResultMeta.appendChild(item);
+        });
+        els.mathResult.hidden = false;
+      }
+
+      function showMathError(error) {
+        const message = error?.name === "AbortError"
+          ? "Le calcul prend trop de temps. Essayez une expression plus courte."
+          : error?.message || "Cette expression n’a pas pu être calculée.";
+        els.mathResult.dataset.state = "error";
+        els.mathResult.setAttribute("role", "alert");
+        els.mathResultSuccess.hidden = true;
+        els.mathError.hidden = false;
+        els.mathError.textContent = `Calcul impossible : ${message}`;
+        els.mathResult.hidden = false;
+      }
+
+      async function calculateMath(event) {
+        event.preventDefault();
+        if (mathState.calculating) return;
+        const expression = els.mathExpression.value.trim();
+        if (!expression) {
+          showMathError(new Error("écrivez d’abord une expression."));
+          els.mathExpression.focus();
+          return;
+        }
+        mathState.calculating = true;
+        els.mathCalculate.disabled = true;
+        els.mathCalculate.textContent = "Calcul en cours…";
+        els.mathExpression.setAttribute("aria-busy", "true");
+        try {
+          const payload = await apiFetch("/api/calculate", {
+            method: "POST",
+            timeoutMs: 30000,
+            body: JSON.stringify({ expression })
+          });
+          renderMathCalculation(payload);
+        } catch (error) {
+          showMathError(error);
+        } finally {
+          mathState.calculating = false;
+          els.mathCalculate.disabled = false;
+          els.mathCalculate.textContent = "Calculer";
+          els.mathExpression.removeAttribute("aria-busy");
+        }
+      }
+
+      function mathImportJobIds(payload) {
+        const source = payload?.import && typeof payload.import === "object" ? payload.import : payload;
+        const rawJobs = source?.jobs ?? source?.job_ids ?? [];
+        const jobs = Array.isArray(rawJobs) ? rawJobs : [rawJobs];
+        return [...new Set(jobs.map(job => {
+          if (typeof job === "string" || typeof job === "number") return String(job).trim();
+          if (job && typeof job === "object") return String(job.job_id ?? job.id ?? "").trim();
+          return "";
+        }).filter(Boolean))];
+      }
+
+      async function importMathCatalog() {
+        if (mathState.importing) return;
+        mathState.importing = true;
+        els.mathCatalogImport.disabled = true;
+        els.mathCatalogImport.textContent = "Import en cours…";
+        els.mathCatalogStatus.setAttribute("role", "status");
+        els.mathCatalogStatus.textContent = "Le catalogue est envoyé vers la file d’apprentissage…";
+        try {
+          const payload = await apiFetch("/api/math/catalog/import", {
+            method: "POST",
+            timeoutMs: 30000,
+            body: JSON.stringify({})
+          });
+          const source = payload?.import && typeof payload.import === "object" ? payload.import : payload;
+          const jobIds = mathImportJobIds(source);
+          const accepted = resultCount(source?.accepted ?? source?.queued_count)
+            ?? resultCount(source?.jobs)
+            ?? jobIds.length;
+          const duplicates = resultCount(
+            source?.duplicates ?? source?.duplicate_count ?? source?.deduplicated
+          ) ?? 0;
+          if (jobIds.length && accepted > 0) {
+            registerPipelineOperation("catalog", { job_ids: jobIds }, accepted);
+            void refreshPipeline(true);
+          }
+          if (accepted > 0) {
+            els.mathCatalogStatus.textContent = `Import accepté : ${formatNumber(accepted)} fiche${accepted > 1 ? "s" : ""} mise${accepted > 1 ? "s" : ""} en apprentissage${duplicates ? ` · ${formatNumber(duplicates)} doublon${duplicates > 1 ? "s" : ""} évité${duplicates > 1 ? "s" : ""}` : ""}.`;
+          } else if (duplicates > 0) {
+            els.mathCatalogStatus.textContent = `Catalogue déjà présent dans la mémoire : ${formatNumber(duplicates)} doublon${duplicates > 1 ? "s" : ""} évité${duplicates > 1 ? "s" : ""}.`;
+          } else {
+            els.mathCatalogStatus.textContent = "Import du catalogue accepté. Le panneau d’apprentissage indiquera sa progression.";
+          }
+        } catch (error) {
+          els.mathCatalogStatus.setAttribute("role", "alert");
+          els.mathCatalogStatus.textContent = `Import impossible : ${error?.message || "le moteur n’a pas accepté le catalogue."}`;
+        } finally {
+          mathState.importing = false;
+          els.mathCatalogImport.disabled = !mathState.catalog || mathState.catalog.count === 0;
+          els.mathCatalogImport.textContent = "Importer le catalogue dans la mémoire";
         }
       }
 
@@ -2030,12 +2771,16 @@
         if (operation.kind === "import") {
           return `Import JSON consolidé : ${formatNumber(count)} souvenir${count > 1 ? "s sont" : " est"} maintenant disponible${count > 1 ? "s" : ""}.`;
         }
+        if (operation.kind === "catalog") {
+          return `Catalogue mathématique consolidé : ${formatNumber(count)} fiche${count > 1 ? "s sont" : " est"} maintenant disponible${count > 1 ? "s" : ""} dans la mémoire.`;
+        }
         return `Test terminé : ${formatNumber(count)} souvenir${count > 1 ? "s ont" : " a"} été consolidé${count > 1 ? "s" : ""}.`;
       }
 
       function pipelineFailureMessage(operation) {
         if (operation.kind === "observe") return "Le souvenir mis en file n’a pas pu être consolidé.";
         if (operation.kind === "import") return "L’import JSON n’a pas pu être consolidé complètement.";
+        if (operation.kind === "catalog") return "Le catalogue mathématique n’a pas pu être consolidé complètement.";
         return "L’apprentissage a rencontré un échec.";
       }
 
@@ -2912,6 +3657,15 @@
 
       els.refresh.addEventListener("click", () => refreshMemory(false));
       els.pipelineTest.addEventListener("click", testPipeline);
+      els.mathForm.addEventListener("submit", calculateMath);
+      els.mathCatalogSearch.addEventListener("input", renderMathCatalog);
+      els.mathCatalogImport.addEventListener("click", importMathCatalog);
+      document.querySelectorAll("[data-math-expression]").forEach(button => {
+        button.addEventListener("click", () => {
+          els.mathExpression.value = button.dataset.mathExpression || "";
+          els.mathForm.requestSubmit();
+        });
+      });
 
       document.addEventListener("visibilitychange", () => {
         if (document.hidden) {
@@ -2979,6 +3733,7 @@
 
       refreshMemory(false);
       void refreshPipeline(false);
+      void loadMathCatalog();
     })();
   </script>
 </body>

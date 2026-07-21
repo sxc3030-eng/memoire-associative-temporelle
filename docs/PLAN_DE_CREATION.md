@@ -1,6 +1,6 @@
 # Plan de création du moteur de mémoire pour agent
 
-Ce plan vise un premier moteur petit, local, persistant et explicable. La v0.3 ajoute une file durable d'injection, un worker de consolidation et un lecteur distinct. Le but n'est pas de construire immédiatement une « intelligence complète », mais de tester les hypothèses centrales avec des résultats reproductibles.
+Ce plan vise un premier moteur petit, local, persistant et explicable. La v0.3 a séparé l'injection, la consolidation et la lecture; la v0.4 ajoute une calculatrice déterministe et un catalogue de règles importable explicitement. Le but n'est pas de construire immédiatement une « intelligence complète », mais de tester les hypothèses centrales avec des résultats reproductibles.
 
 ## 1. Résultat attendu du MVP
 
@@ -17,7 +17,10 @@ Ce plan vise un premier moteur petit, local, persistant et explicable. La v0.3 a
 9. accepter rapidement une observation avec `HTTP 202` et un ticket durable ;
 10. consolider cette observation en arrière-plan puis exposer son état ;
 11. continuer à lire la mémoire pendant que le worker écrit ;
-12. reprendre un travail interrompu sans doubler l'apprentissage.
+12. reprendre un travail interrompu sans doubler l'apprentissage ;
+13. calculer une expression autorisée avec un résultat typé, une durée et une validation de politique ;
+14. garantir qu'un calcul ordinaire n'écrit rien dans la mémoire ;
+15. inspecter puis importer explicitement et idempotemment les règles du catalogue mathématique.
 
 ## 2. Périmètre fonctionnel
 
@@ -37,6 +40,10 @@ Ce plan vise un premier moteur petit, local, persistant et explicable. La v0.3 a
 - connexions de lecture et d'écriture distinctes vers la mémoire ;
 - tickets, retard de file et métriques de dédoublonnage et de taille ;
 - interdiction de réinjecter automatiquement une réponse générée.
+- langage d'expressions mathématiques borné et registre de fonctions versionné ;
+- résultats exacts ou approchés, métriques d'exécution et validation de politique ;
+- import explicite des descriptions du catalogue, séparé de l'exécution des calculs ;
+- quatre niveaux distingués : reçu, observé, consolidé et opérationnel.
 
 ### Reporté après validation
 
@@ -48,6 +55,7 @@ Ce plan vise un premier moteur petit, local, persistant et explicable. La v0.3 a
 - mémoire partagée entre organisations ;
 - apprentissage neuronal différentiable ;
 - suppression automatique des souvenirs anciens.
+- exécution de code arbitraire ou système d'algèbre symbolique général.
 
 ## 3. Choix techniques initiaux
 
@@ -61,6 +69,7 @@ Ce plan vise un premier moteur petit, local, persistant et explicable. La v0.3 a
 | Lecture | connexion `MemoryEngine` distincte | disponibilité du rappel pendant les écritures WAL |
 | API | `http.server` de la bibliothèque standard | prototype local sans dépendance; FastAPI reste une option future |
 | Validation | fonctions déterministes et dataclasses | entrées bornées sans dépendance externe |
+| Calcul mathématique | parcours explicite d'un AST autorisé + registre versionné | résultat reproductible sans `eval` ni écriture mémoire automatique |
 | Tests | `unittest` | scénarios reproductibles fournis par Python |
 | Migrations | version de schéma SQLite vérifiée explicitement | refus d'une version inconnue plutôt qu'une migration implicite |
 | Visualisation exploratoire | Mermaid et interface locale | inspection sans ajouter de moteur graphe |
@@ -84,6 +93,7 @@ memory-engine/
 │       │   ├── observe.py
 │       │   ├── recall.py
 │       │   ├── predict.py
+│       │   ├── calculate.py
 │       │   ├── explanations.py
 │       │   └── forget.py
 │       ├── storage/
@@ -93,6 +103,10 @@ memory-engine/
 │       │   ├── decay.py
 │       │   ├── activation.py
 │       │   └── variable_order.py
+│       ├── math/
+│       │   ├── catalog.py
+│       │   ├── evaluator.py
+│       │   └── limits.py
 │       └── api/
 │           └── http.py
 ├── tests/
@@ -101,6 +115,8 @@ memory-engine/
 │   ├── properties/
 │   └── scenarios/
 ├── benchmarks/
+│   ├── pipeline.py
+│   └── math.py
 ├── examples/
 └── docs/
 ```
@@ -166,6 +182,34 @@ forget(scope, selector)
 → affected_events, removed_evidence_spans, rebuilt_continuations
 ```
 
+### `calculate` et catalogue v0.4
+
+```text
+POST /api/calculate
+{ "expression": "comb(20, 3) + sqrt(81)" }
+→ result, display, result_type, exact, duration_ms,
+  functions_used, operations_count, verification
+
+GET /api/math/catalog
+→ version, count, categories, functions
+
+POST /api/math/catalog/import
+→ HTTP 202, catalog_version, queued_count, duplicate_count, job_ids
+```
+
+`calculate` valide puis parcourt un AST borné et n'appelle jamais `observe` ou `enqueue`. Son résultat reste éphémère. L'import du catalogue est une action distincte : chaque règle reçoit une clé idempotente dérivée de la version et de son nom stable, puis suit le pipeline normal. Une commande conversationnelle `Calcule ...` délègue au même moteur et conserve la même garantie d'absence d'écriture.
+
+### Niveaux d'apprentissage
+
+| Niveau | Condition | Usage permis |
+|---|---|---|
+| Reçu | contenu accepté ou répertorié | aucun guidage fiable |
+| Observé | preuve extérieure ou action exécutée avec provenance | preuve contextualisée |
+| Consolidé | motif soutenu par plusieurs preuves traçables | rappel et classement |
+| Opérationnel | règle déterministe testée, versionnée et bornée | exécution dans le calculateur autorisé |
+
+Un résultat opérationnel n'est pas automatiquement une observation. Il ne rejoint la mémoire que s'il revient comme donnée extérieure indépendante selon les règles de provenance.
+
 ## 6. Jeux de scénarios de référence
 
 Avant le code, créer des fichiers de données déterministes avec les réponses attendues.
@@ -221,6 +265,24 @@ Attendu : son étendue de preuve disparaît, les compteurs diminuent exactement 
 Une ancienne branche fréquente est remplacée par une nouvelle habitude.
 
 Attendu : le support brut conserve l'histoire, mais le score avec décroissance finit par favoriser le nouveau régime.
+
+### Scénario H — calcul exact et approché sans mémoire
+
+Évaluer des expressions arithmétiques, rationnelles et transcendantes autorisées, puis vérifier indépendamment les résultats et leur drapeau exact/approché.
+
+Attendu : résultats reproductibles dans les tolérances déclarées, trace de validation présente et compteurs mémoire/file inchangés après les calculs. Le scénario de test, contrairement à un calcul ordinaire, compare aussi avec un résultat attendu indépendant.
+
+### Scénario I — expression interdite ou hors quota
+
+Soumettre un import de module, un accès à un attribut, une fonction inconnue, un exposant excessif et un arbre trop profond.
+
+Attendu : erreur contrôlée et bornée, aucune exécution arbitraire, aucune écriture et serveur toujours disponible.
+
+### Scénario J — import explicite du catalogue
+
+Importer deux fois la même version du catalogue.
+
+Attendu : la première action crée ou remet en file les règles nécessaires; la seconde retrouve les mêmes tickets sans renforcer les preuves ni importer aucun résultat de calcul.
 
 ## 7. Phases de réalisation
 
@@ -434,6 +496,35 @@ sequenceDiagram
 
 ---
 
+### Phase 6b — Séparer le calcul déterministe de la mémoire
+
+**Travail**
+
+- définir un catalogue versionné de constantes, opérateurs et fonctions pures ;
+- analyser les expressions par AST et autoriser explicitement chaque type de nœud ;
+- borner longueur, profondeur, opérations, exposants, collections, entiers et résultats ;
+- retourner valeur sérialisable, affichage stable, type, exactitude, durée, fonctions utilisées et validation de politique ;
+- exposer `GET /api/math/catalog`, `POST /api/calculate` et `POST /api/math/catalog/import` ;
+- reconnaître la commande conversationnelle `Calcule ...` sans passer par la mémoire ;
+- garantir par test que le catalogue consulté et tous les calculs laissent mémoire et file inchangées ;
+- rendre l'import des seules règles explicite, idempotent et observable par tickets ;
+- fournir `scripts/benchmark_math.py` sans publier de mesure hors de son contexte d'exécution ;
+- documenter le langage, ses limites et les quatre niveaux dans `docs/CALCULATEUR_MATHEMATIQUE.md`.
+
+**Critères d'acceptation**
+
+- aucune syntaxe non déclarée ne peut exécuter du code, lire un fichier ou accéder au réseau ;
+- chaque erreur de syntaxe, domaine ou quota est contrôlée et bornée ;
+- une expression et une version de catalogue identiques produisent le même résultat déterministe dans le domaine exact, ou respectent la tolérance déclarée dans le domaine approché ;
+- cent, cent mille ou davantage de calculs n'ajoutent aucun événement ni ticket par eux-mêmes ;
+- seul l'import explicite du catalogue crée des tickets, sans inclure les exemples de résultats ;
+- réimporter la même version ne renforce pas une deuxième fois les mêmes règles ;
+- le benchmark rapporte exactitude, erreurs, débit, latences p50/p95/p99 et `memory_writes`, sans chiffre codé dans la documentation.
+
+**Livrable :** calculatrice v0.4, catalogue inspectable, import explicite et benchmark reproductible.
+
+---
+
 ### Phase 7 — Mesurer et décider de la suite
 
 **Travail**
@@ -472,6 +563,9 @@ sequenceDiagram
 - transitions d'état et budget fini d'essais d'un ticket ;
 - conflit lorsqu'une clé d'idempotence désigne un payload différent ;
 - calcul du taux de dédoublonnage, du retard et des tailles DB/WAL/SHM.
+- validation de l'AST mathématique, quotas et registre de fonctions ;
+- sérialisation stable des entiers, fractions et valeurs approchées ;
+- méthode de validation de politique et comptage des opérations.
 
 ### Tests de propriétés
 
@@ -485,6 +579,8 @@ sequenceDiagram
 - une soumission dédoublonnée ne crée ni nouveau ticket ni nouvelle preuve ;
 - tout ticket non terminal est `pending` ou appartient au worker qui le traite ;
 - un ticket `completed` correspond à un événement mémoire ou à un résultat moteur marqué doublon.
+- évaluer une expression ou consulter le catalogue ne modifie jamais les compteurs mémoire/file ;
+- réimporter la même version d'une règle mathématique ne crée pas une seconde preuve.
 
 ### Tests d'intégration
 
@@ -506,6 +602,9 @@ sequenceDiagram
 - fermeture simulée du client après le `202` : le serveur termine puis nettoie le run sans nouvel appel client ;
 - redémarrage pendant le nettoyage : reprise idempotente, absence d'événement synthétique et bilan final persistant ;
 - vérification que les mutations du writer et de la file utilisent le niveau de synchronisation durable attendu.
+- calcul par route dédiée et par commande `Calcule ...`, avec le même résultat et aucune écriture ;
+- catalogue inspectable, import `202`, tickets terminaux puis réimport entièrement dédoublonné ;
+- comparaison d'un lot d'expressions à un chemin de résultat attendu indépendant.
 
 ### Tests adversariaux
 
@@ -521,6 +620,8 @@ sequenceDiagram
 - réponse générée essayant de se réinjecter sans observation extérieure, qui doit être ignorée ;
 - croissance prolongée du backlog, erreurs répétées du worker et budget d'essais épuisé ;
 - clé d'idempotence valide réutilisée avec un contenu différent.
+- imports Python, attributs, indices arbitraires, lambdas, compréhensions et affectations dans une expression ;
+- arbre trop profond, trop grand, exposant ou entier excessif, domaine invalide et tentative de résultat non fini.
 
 ## 9. Mesures d'évaluation
 
@@ -537,6 +638,7 @@ sequenceDiagram
 | Oubli | temps de suppression et égalité après reconstruction |
 | Isolation | nombre de fuites de portée, attendu : zéro |
 | Modèle + mémoire | exactitude, hallucination, qualité de langue/raisonnement, paramètres, données d'entraînement, tokens injectés et coût total |
+| Calcul déterministe | exactitude par famille avec oracle de benchmark, refus attendus, débit, latences p50/p95/p99, sélection de fonction, validation de politique et écritures mémoire attendues : zéro |
 
 Si des probabilités calibrées sont ajoutées, mesurer aussi Brier score ou log loss. Avant cela, parler uniquement de scores relatifs.
 
@@ -571,6 +673,8 @@ Le prototype doit être meilleur sur au moins un besoin mesuré, et pas seulemen
 | Worker bloquant le lecteur | connexions distinctes, WAL, lots bornés et test de concurrence contrôlé |
 | Souvenirs de test laissés par un onglet fermé | run persistant et atomique, nettoyage possédé par le serveur et reprise après interruption |
 | Réduction de paramètres affirmée trop tôt | expériences contrôlées et séparation des capacités factuelles, linguistiques et de raisonnement |
+| Calculatrice utilisée comme exécuteur arbitraire | liste blanche d'AST/fonctions, quotas stricts et aucun `eval` |
+| Résultats mathématiques auto-appris | chemin `calculate` sans écriture et import distinct des seules règles versionnées |
 
 ## 12. Liste initiale d'issues GitHub
 
@@ -598,6 +702,10 @@ Le prototype doit être meilleur sur au moins un besoin mesuré, et pas seulemen
 - [x] Exposer les métriques de file, dédoublonnage, retard et taille mémoire.
 - [x] Tester qu'une réponse de rappel n'est jamais auto-réinjectée.
 - [x] Rendre les runs synthétiques atomiques, persistants et auto-nettoyés par le serveur avec bilan final.
+- [x] Ajouter un moteur mathématique borné et un catalogue versionné.
+- [x] Exposer le catalogue, le calcul et l'import explicite de ses règles par l'API locale.
+- [x] Garantir par test que les calculs ne créent aucun souvenir ni ticket.
+- [x] Ajouter un benchmark mathématique reproductible sans résultat de machine codé dans la documentation.
 - [ ] Permettre plus tard la correction manuelle des catégories avant confirmation.
 - [ ] Ajouter un manifeste et l'oubli groupé par `import_id`.
 - [ ] Construire le benchmark de 100 000 occurrences.
@@ -615,7 +723,8 @@ flowchart LR
     X --> F["Oubli vérifiable"]
     F --> A["Connexion à un agent"]
     A --> Q["Pipeline durable séparé"]
-    Q --> M["Mesures à plus grande échelle"]
+    Q --> T["Calculateur borné sans auto-mémoire"]
+    T --> M["Mesures à plus grande échelle"]
     M --> C{"Complexité supplémentaire utile ?"}
     C -->|"oui, gain mesuré"| V["Baselines mémoire et modèle"]
     C -->|"non"| K["Conserver le moteur simple"]
@@ -629,6 +738,8 @@ La première preuve de valeur n'est pas une démonstration spectaculaire. C'est 
 
 Hypothèse : un petit modèle peut externaliser une partie des faits précis, changeants ou personnels dans cette mémoire. Il pourrait alors nécessiter moins de répétitions factuelles pendant l'entraînement et, pour une couverture factuelle ciblée, potentiellement moins de paramètres.
 
+Hypothèse complémentaire : le même petit modèle peut déléguer les procédures déterministes au calculateur au lieu d'approximer dans ses poids chaque algorithme et chaque résultat. La v0.4 démontre seulement la séparation technique et l'absence d'auto-écriture; elle ne démontre ni une réduction de données d'entraînement ni une réduction de paramètres.
+
 Limite : la mémoire ne remplace pas les paramètres nécessaires à la compréhension et à la génération de la langue, au raisonnement, aux représentations générales, à la planification ni à la sélection correcte d'une preuve. Une amélioration factuelle ne permet donc pas à elle seule d'affirmer que le modèle entier peut être réduit.
 
 ### Matrice comparative
@@ -641,9 +752,11 @@ Limite : la mémoire ne remplace pas les paramètres nécessaires à la compréh
 | S0 | petit modèle | aucune |
 | S1 | même petit modèle | recherche lexicale ou chronologique simple |
 | S2 | même petit modèle | RAG vectoriel |
-| S3 | même petit modèle | mémoire associative temporelle v0.3 |
+| S3 | même petit modèle | mémoire associative temporelle v0.4 |
 | S3-a | même petit modèle | ablation sans ordre temporel |
 | S3-b | même petit modèle | ablation sans provenance |
+| S4 | même petit modèle | calculatrice déterministe seule |
+| S5 | même petit modèle | calculatrice + mémoire associative temporelle |
 
 Si l'entraînement contrôlé est accessible, croiser au moins trois tailles de modèle avec plusieurs fractions du corpus factuel, par exemple `0 %`, `25 %`, `50 %` et `100 %`. Garder le corpus de langue et de raisonnement identique. La mémoire reçoit seulement les faits attribués à sa condition expérimentale, jamais les réponses du jeu de test.
 
@@ -656,9 +769,13 @@ Si l'entraînement contrôlé est accessible, croiser au moins trois tailles de 
 5. combinaison de plusieurs indices ou preuves ;
 6. questions de langue et de raisonnement ne nécessitant aucune mémoire ;
 7. distracteurs, contradictions, source générée et tentative d'auto-réinjection.
+8. calcul exact, calcul approché, domaine invalide et choix de la bonne fonction ;
+9. tâches mathématiques où l'outil est désactivé afin de mesurer ce qui vient réellement du modèle.
 
 ### Mesures et décision
 
-Rapporter par système : exactitude, Hit@k du rappel, taux d'hallucination, fidélité aux preuves, adaptation aux mises à jour, qualité de langue, réussite du raisonnement, paramètres, tokens et données d'entraînement, tokens de mémoire ajoutés au contexte, temps d'entraînement si disponible, latences p50/p95, débit et retard du worker, mémoire vive, taille disque et coût total estimé. Utiliser plusieurs graines ou répétitions lorsque le modèle est stochastique et publier les intervalles d'incertitude.
+Rapporter par système : exactitude, Hit@k du rappel, taux d'hallucination, fidélité aux preuves, adaptation aux mises à jour, qualité de langue, réussite du raisonnement, sélection correcte de l'outil, validité de l'expression, paramètres, tokens et données d'entraînement, tokens de mémoire ajoutés au contexte, temps d'entraînement si disponible, latences p50/p95, débit et retard du worker, mémoire vive, taille disque et coût total estimé. Pour la calculatrice, publier séparément exactitude, refus attendus, débit, latences et nombre d'écritures mémoire. Utiliser plusieurs graines ou répétitions lorsque le modèle est stochastique et publier les intervalles d'incertitude.
 
 L'hypothèse factuelle reçoit un signal favorable si `S3` dépasse nettement `S0` sur les faits nouveaux et temporels, reste compétitif face à `S2`, et ne dégrade pas les tâches sans mémoire au-delà d'une marge définie avant le test. Une réduction de données n'est soutenue que si une fraction factuelle plus faible atteint la même cible. Une réduction de paramètres n'est soutenue que si une taille plus petite atteint la cible d'un modèle plus grand. Le coût du stockage, du rappel et des tokens injectés doit être compté : déplacer un coût sans réduire le coût total n'est pas une victoire complète.
+
+L'hypothèse de calcul reçoit un signal favorable si `S4` ou `S5` améliore l'exactitude mathématique du même petit modèle, sans écrire les résultats dans la mémoire et sans dégrader les tâches où aucun outil n'est requis. Cela démontre l'utilité de la délégation, pas une réduction de paramètres. Cette dernière n'est soutenue que si un modèle effectivement plus petit atteint la cible de la baseline plus grande avec coût total et contraintes comparables.
