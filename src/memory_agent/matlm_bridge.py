@@ -28,6 +28,45 @@ _STATUS_RANK = {
 }
 _SPACE_RANK = {"shared": 0, "private": 1, "reference": 2}
 _SAFE_TAG = re.compile(r"^[^\x00-\x1f\x7f]{1,64}$")
+_TERM_PATTERN = re.compile(r"[^\W_]+", re.UNICODE)
+_QUERY_STOPWORDS = frozenset(
+    {
+        "a",
+        "au",
+        "aux",
+        "avec",
+        "ce",
+        "ces",
+        "dans",
+        "de",
+        "des",
+        "du",
+        "elle",
+        "en",
+        "est",
+        "et",
+        "il",
+        "la",
+        "le",
+        "les",
+        "où",
+        "par",
+        "pour",
+        "qu",
+        "que",
+        "quel",
+        "quelle",
+        "quelles",
+        "quels",
+        "qui",
+        "sa",
+        "ses",
+        "son",
+        "sur",
+        "un",
+        "une",
+    }
+)
 _MAX_HUB_ITEMS = 1_024
 _MAX_ATOMIC_ROWS_PER_ITEM = 256
 _SYSTEM_MESSAGE = (
@@ -88,6 +127,24 @@ def _clean_text(value: Any, maximum: int) -> tuple[str | None, bool]:
 
 def _semantic_text(value: str) -> str:
     return " ".join(unicodedata.normalize("NFKC", value).casefold().split())
+
+
+def _lexical_terms(value: str) -> frozenset[str]:
+    normalized = unicodedata.normalize("NFKC", value).casefold()
+    return frozenset(
+        term
+        for term in _TERM_PATTERN.findall(normalized)
+        if len(term) > 1 and term not in _QUERY_STOPWORDS
+    )
+
+
+def _question_overlap(
+    candidate: _EvidenceCandidate,
+    question_terms: frozenset[str],
+) -> int:
+    if not question_terms:
+        return 0
+    return len(question_terms & _lexical_terms(candidate.text))
 
 
 def _space(item: Mapping[str, Any]) -> str:
@@ -398,9 +455,15 @@ def hub_recall_to_native(
         deduplicated[candidate.semantic_key] = (
             candidate if existing is None else _preferred(existing, candidate)
         )
+    question_terms = _lexical_terms(question)
     ordered = sorted(
         deduplicated.values(),
-        key=lambda candidate: (candidate.order, candidate.evidence_id),
+        key=lambda candidate: (
+            candidate.order // 1_000,
+            -_question_overlap(candidate, question_terms),
+            candidate.order,
+            candidate.evidence_id,
+        ),
     )[:max_evidence_items]
 
     evidence_rows = [

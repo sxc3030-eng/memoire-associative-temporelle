@@ -276,6 +276,11 @@ ou un délai dépassé arrête le worker afin que la question suivante ne puisse
 pas recevoir une ancienne réponse. Ni la question ni la réponse générée ne
 sont injectées automatiquement dans la mémoire.
 
+Dans un dossier scientifique rappelé, les faits atomiques restent groupés par
+résultat du Memory Hub, puis sont ordonnés par les termes de la question. Une
+question sur la découverte de Fleming place ainsi la preuve de 1928 avant sa
+date de naissance, sans changer les faits ni leurs identifiants.
+
 Les routes sont accessibles uniquement sur la même origine locale :
 
 ```text

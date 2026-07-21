@@ -141,6 +141,45 @@ class MATLMBridgeTests(unittest.TestCase):
         self.assertEqual(native["evidence"][0]["temporal_context"], "1898 (year)")
         self.assertIn("claim-status:documented_joint_attribution", native["evidence"][0]["tags"])
 
+    def test_question_ranks_the_matching_claim_first_inside_one_dossier(self) -> None:
+        item = event_item("dossier pénicilline", policy="reference", source="observed")
+        item["context"] = {
+            "dossier": "penicillin",
+            "claim_provenance": [
+                {
+                    "claim_id": "claim-fleming-born",
+                    "statement": "Alexander Fleming est né le 6 août 1881.",
+                    "date": {"value": "1881-08-06", "precision": "day"},
+                    "claim_status": "documented",
+                    "source_ids": ["src-nobel-fleming"],
+                },
+                {
+                    "claim_id": "claim-fleming-discovery",
+                    "statement": (
+                        "Alexander Fleming a découvert la pénicilline à l'hôpital "
+                        "St Mary's en 1928."
+                    ),
+                    "date": {"value": "1928", "precision": "year"},
+                    "claim_status": "documented_initial_discovery_role",
+                    "source_ids": ["src-nobel-fleming"],
+                },
+            ],
+        }
+
+        native = hub_recall_to_native(
+            hub_capsule(item),
+            request_id="bridge-science-question-order",
+            question="Qu'a découvert Alexander Fleming, où et en quelle année ?",
+            max_evidence_items=1,
+        )
+
+        self.assertEqual(len(native["evidence"]), 1)
+        self.assertIn("découvert la pénicilline", native["evidence"][0]["text"])
+        self.assertIn(
+            "claim:claim-fleming-discovery",
+            native["evidence"][0]["tags"],
+        )
+
     def test_ids_are_stable_and_semantic_duplicates_are_merged(self) -> None:
         shared = event_item("Même fait   stable", policy="shared", source="observed")
         reference = event_item("même fait stable", policy="reference", source="verified")
