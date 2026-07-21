@@ -447,7 +447,7 @@ Le premier jalon est réussi si le moteur peut, de façon déterministe et repro
 - **v0.1 — Fondations :** modèle concept/occurrence, stockage SQLite, rappel et prédiction explicables.
 - **v0.2 — Données :** import JSON en deux temps, idempotence, provenance et exemples interrogeables.
 - **v0.3 — Pipeline séparé :** file durable, tickets `HTTP 202`, worker de consolidation, lecteur distinct et métriques de retard/dédoublonnage/taille.
-- **v0.4 — Calcul déterministe :** catalogue versionné, expressions bornées, résultats vérifiables, benchmark sans écriture mémoire et import explicite des règles.
+- **v0.4 — Calcul déterministe :** catalogue versionné, expressions bornées, résultats traçables, benchmark avec oracle indépendant sans écriture mémoire et import explicite des règles.
 - **v0.5 — Échelle :** consolidation incrémentale, benchmarks de charge et politiques de mémoire active/consolidée/archivée.
 - **v0.6 — Modèle :** adaptateur pour petit modèle et expériences comparatives avec les baselines sans mémoire, calculatrice et RAG.
 
