@@ -272,6 +272,8 @@ class MATLMWorker:
                     "device": f"xpu:{self.config.device_index}",
                     "base_model": Path(self.config.base_model_path).name,
                     "adapter": Path(self.config.adapter_path).name,
+                    "max_input_tokens": self.config.max_input_tokens,
+                    "max_new_tokens": self.config.max_new_tokens,
                 },
             }
 

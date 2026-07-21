@@ -127,6 +127,8 @@ for line in sys.stdin:
             self.assertEqual(ready["state"], "ready")
             self.assertTrue(ready["model_loaded"])
             self.assertEqual(ready["completed_requests"], 0)
+            self.assertEqual(ready["runtime"]["max_input_tokens"], 4_096)
+            self.assertEqual(ready["runtime"]["max_new_tokens"], 768)
             first = worker.ask(_capsule("worker-test-1"))
             second = worker.ask(_capsule("worker-test-2"))
 

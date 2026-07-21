@@ -255,7 +255,8 @@ py start_agent.py --async-injection --enable-matlm `
   --matlm-python D:\MAT-LM\.venv\Scripts\python.exe `
   --matlm-model D:\MAT-LM\models\granite-3.3-2b-instruct `
   --matlm-adapter D:\MAT-LM\adapter `
-  --matlm-load-mode auto --matlm-timeout-seconds 180
+  --matlm-load-mode auto --matlm-max-new-tokens 384 `
+  --matlm-timeout-seconds 180
 ```
 
 Le bouton **Démarrer MAT-LM** ouvre un unique processus local
@@ -263,6 +264,10 @@ Le bouton **Démarrer MAT-LM** ouvre un unique processus local
 entre les questions; **Arrêter** ferme le processus et libère explicitement le
 modèle. Le serveur n'ajoute jamais `--allow-model-download` et force
 Transformers en mode hors ligne.
+
+La limite interactive de 384 nouveaux tokens couvre le maximum de 302 tokens
+mesuré sur les 2 520 réponses du curriculum, avec une marge, tout en évitant
+de laisser le petit modèle poursuivre inutilement une génération déjà complète.
 
 Pour chaque question, le serveur rappelle au plus 12 preuves autorisées dans
 les espaces personnel et scientifique, construit une capsule JSON bornée, puis
