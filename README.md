@@ -246,6 +246,13 @@ est définie dans le [protocole MAT-LM](docs/MAT_LM_BENCHMARK_PROTOCOL.md).
 
 ### Parler à MAT-LM depuis l'interface locale
 
+L'interface s'ouvre désormais en mode conversation : MAT-LM occupe l'écran et
+les outils de recherche restent masqués. Le bouton **Ouvrir le laboratoire**
+révèle au besoin la mémoire générale, l'import JSON, les références
+scientifiques, le calculateur et les tests de charge. L'icône à quatre anneaux
+et l'en-tête orbital représentent les quatre niveaux d'apprentissage, la
+chronologie et les associations entre souvenirs.
+
 Le panneau **Parler à MAT-LM** reste désactivé par défaut. Pour l'activer avec
 un environnement, un modèle Granite et un adaptateur PEFT déjà présents sur
 `D:\MAT-LM`, lancez :

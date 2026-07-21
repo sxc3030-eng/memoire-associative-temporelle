@@ -4,6 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Interface de conversation avec le prototype de mémoire associative temporelle.">
+  <meta name="theme-color" content="#06122d">
+  <link rel="icon" href="/assets/matlm-favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="/assets/matlm-icon-64.png" sizes="64x64">
+  <link rel="apple-touch-icon" href="/assets/matlm-apple-touch-icon.png">
   <title>Mémoire vivante — Agent expérimental</title>
   <style>
     :root {
@@ -21,6 +25,9 @@
       --amber: #d98943;
       --amber-pale: #f8e9d8;
       --red: #a94d45;
+      --matlm-navy: #06122d;
+      --matlm-cyan: #39c8ff;
+      --matlm-violet: #8376ff;
       --shadow: 0 18px 50px rgba(37, 52, 46, 0.09);
       --radius-xl: 26px;
       --radius-lg: 19px;
@@ -81,45 +88,15 @@
     }
 
     .brand-mark {
-      position: relative;
-      display: grid;
-      width: 45px;
-      height: 45px;
+      display: block;
+      width: 48px;
+      height: 48px;
       flex: 0 0 auto;
-      place-items: center;
-      border: 1px solid rgba(31, 107, 85, 0.25);
-      border-radius: 50%;
-      background: var(--surface-solid);
-      box-shadow: 0 8px 22px rgba(31, 107, 85, 0.10);
-    }
-
-    .brand-mark::before,
-    .brand-mark::after {
-      position: absolute;
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--amber);
-      content: "";
-    }
-
-    .brand-mark::before {
-      top: 7px;
-      right: 8px;
-    }
-
-    .brand-mark::after {
-      bottom: 8px;
-      left: 7px;
-      background: var(--green);
-    }
-
-    .brand-core {
-      width: 16px;
-      height: 16px;
-      border: 5px solid var(--green);
-      border-radius: 50%;
-      box-shadow: 0 0 0 4px var(--green-pale);
+      border: 1px solid rgba(57, 200, 255, 0.34);
+      border-radius: 14px;
+      background: var(--matlm-navy);
+      box-shadow: 0 9px 24px rgba(6, 18, 45, 0.22);
+      object-fit: cover;
     }
 
     .brand-name {
@@ -136,11 +113,36 @@
     .brand-kicker {
       display: block;
       margin-bottom: 2px;
-      color: var(--green);
+      color: #277b9d;
       font-size: 0.7rem;
       font-weight: 800;
       letter-spacing: 0.13em;
       text-transform: uppercase;
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 9px;
+    }
+
+    .view-toggle {
+      min-height: 36px;
+      padding: 7px 13px;
+      border: 1px solid rgba(6, 18, 45, 0.14);
+      border-radius: 999px;
+      color: #18304a;
+      background: rgba(255, 255, 255, 0.78);
+      cursor: pointer;
+      font-size: 0.76rem;
+      font-weight: 780;
+      box-shadow: 0 7px 20px rgba(6, 18, 45, 0.07);
+    }
+
+    .view-toggle:hover {
+      border-color: rgba(57, 200, 255, 0.55);
+      background: #fff;
     }
 
     .engine-status {
@@ -182,6 +184,15 @@
       gap: 18px;
       align-items: stretch;
       min-height: calc(100vh - 120px);
+    }
+
+    .workspace[data-view="focus"] > :not(.matlm-panel) {
+      display: none;
+    }
+
+    .workspace[data-view="focus"] .matlm-panel {
+      height: calc(100vh - 112px);
+      min-height: 620px;
     }
 
     .panel {
@@ -1141,16 +1152,45 @@
     }
 
     .matlm-header {
+      position: relative;
+      isolation: isolate;
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
       gap: 22px;
-      padding: clamp(22px, 3vw, 32px) clamp(22px, 3vw, 34px) 17px;
-      border-bottom: 1px solid rgba(199, 208, 199, 0.65);
+      min-height: clamp(210px, 21vw, 285px);
+      padding: clamp(28px, 4vw, 46px) clamp(22px, 4vw, 50px);
+      overflow: hidden;
+      border-bottom: 1px solid rgba(57, 200, 255, 0.28);
+      color: #f7fbff;
+      background-color: var(--matlm-navy);
+      background-image:
+        linear-gradient(90deg, rgba(3, 12, 34, 0.98) 0%, rgba(3, 12, 34, 0.86) 40%, rgba(3, 12, 34, 0.24) 69%, rgba(3, 12, 34, 0.36) 100%),
+        url("/assets/matlm-dashboard-hero.webp");
+      background-position: center;
+      background-size: cover;
+    }
+
+    .matlm-header > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .matlm-header .eyebrow {
+      color: #70dcff;
+      text-shadow: 0 0 18px rgba(57, 200, 255, 0.34);
+    }
+
+    .matlm-header h2 {
+      font-size: clamp(1.8rem, 4vw, 3.35rem);
+      text-shadow: 0 4px 28px rgba(0, 0, 0, 0.38);
     }
 
     .matlm-header .intro {
       max-width: 790px;
+      color: rgba(239, 247, 255, 0.78);
+      font-size: clamp(0.86rem, 1.5vw, 1rem);
+      text-shadow: 0 2px 16px rgba(0, 0, 0, 0.42);
     }
 
     .matlm-header-tools {
@@ -1160,6 +1200,29 @@
       flex-wrap: wrap;
       gap: 8px;
       max-width: 470px;
+    }
+
+    .matlm-header .secondary-button {
+      border-color: rgba(203, 232, 255, 0.3);
+      color: #f4f9ff;
+      background: rgba(5, 20, 49, 0.7);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+      backdrop-filter: blur(12px);
+    }
+
+    .matlm-header .secondary-button:hover {
+      background: rgba(17, 44, 78, 0.9);
+    }
+
+    .matlm-header .primary-button {
+      border-color: rgba(103, 220, 255, 0.82);
+      color: #031223;
+      background: #6bdcff;
+      box-shadow: 0 8px 28px rgba(57, 200, 255, 0.2);
+    }
+
+    .matlm-header .primary-button:hover {
+      background: #9ae8ff;
     }
 
     .matlm-status-pill {
@@ -2203,7 +2266,39 @@
       }
 
       .topbar {
+        gap: 8px;
         margin-bottom: 12px;
+      }
+
+      .brand {
+        gap: 9px;
+      }
+
+      .brand-mark {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+      }
+
+      .brand-kicker {
+        display: none;
+      }
+
+      .brand-name {
+        max-width: 42vw;
+        font-size: 0.94rem;
+      }
+
+      .topbar-actions {
+        gap: 5px;
+      }
+
+      .view-toggle {
+        min-height: 34px;
+        max-width: 110px;
+        padding-inline: 10px;
+        font-size: 0.7rem;
+        line-height: 1.15;
       }
 
       .engine-status {
@@ -2253,9 +2348,21 @@
         padding: 0;
       }
 
+      .workspace[data-view="focus"] .matlm-panel {
+        height: calc(100dvh - 82px);
+        min-height: 570px;
+      }
+
       .matlm-header {
         display: block;
-        padding: 18px 14px 14px;
+        min-height: 250px;
+        padding: 25px 18px 18px;
+        background-image:
+          linear-gradient(90deg, rgba(3, 12, 34, 0.98) 0%, rgba(3, 12, 34, 0.88) 58%, rgba(3, 12, 34, 0.5) 100%),
+          url("/assets/matlm-dashboard-hero.webp");
+        background-position: center, 68% center;
+        background-size: cover, auto 100%;
+        background-repeat: no-repeat;
       }
 
       .matlm-header-tools {
@@ -2428,20 +2535,23 @@
 <body>
   <div class="shell">
     <header class="topbar">
-      <div class="brand" aria-label="Mémoire vivante">
-        <div class="brand-mark" aria-hidden="true"><span class="brand-core"></span></div>
+      <div class="brand" aria-label="MAT-LM, mémoire vivante">
+        <img class="brand-mark" src="/assets/matlm-icon-192.png" width="48" height="48" alt="" decoding="async">
         <div>
-          <span class="brand-kicker">Prototype expérimental</span>
-          <span class="brand-name">Mémoire vivante</span>
+          <span class="brand-kicker">Mémoire associative temporelle</span>
+          <span class="brand-name">MAT-LM · Mémoire vivante</span>
         </div>
       </div>
-      <div class="engine-status" id="engine-status" data-state="loading" role="status" aria-live="polite">
-        <span class="status-dot" aria-hidden="true"></span>
-        <span id="engine-status-text">Connexion au moteur…</span>
+      <div class="topbar-actions">
+        <button class="view-toggle" id="view-toggle" type="button" aria-controls="workspace" aria-pressed="false">Ouvrir le laboratoire</button>
+        <div class="engine-status" id="engine-status" data-state="loading" role="status" aria-live="polite">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span id="engine-status-text">Connexion au moteur…</span>
+        </div>
       </div>
     </header>
 
-    <main class="workspace">
+    <main class="workspace" id="workspace" data-view="focus">
       <section class="panel chat-panel" aria-labelledby="chat-title">
         <header class="panel-header">
           <div>
@@ -2825,6 +2935,8 @@
       "use strict";
 
       const els = {
+        workspace: document.getElementById("workspace"),
+        viewToggle: document.getElementById("view-toggle"),
         form: document.getElementById("chat-form"),
         input: document.getElementById("message-input"),
         send: document.getElementById("send-button"),
@@ -3025,6 +3137,13 @@
       function setEngineStatus(state, text) {
         els.status.dataset.state = state;
         els.statusText.textContent = text;
+      }
+
+      function setWorkspaceView(view) {
+        const laboratory = view === "laboratory";
+        els.workspace.dataset.view = laboratory ? "laboratory" : "focus";
+        els.viewToggle.setAttribute("aria-pressed", String(laboratory));
+        els.viewToggle.textContent = laboratory ? "Revenir à MAT-LM" : "Ouvrir le laboratoire";
       }
 
       async function apiFetch(url, options = {}) {
@@ -5136,6 +5255,11 @@
         void refreshMemory(false);
         void loadScienceReference();
       });
+      els.viewToggle.addEventListener("click", () => {
+        const nextView = els.workspace.dataset.view === "focus" ? "laboratory" : "focus";
+        setWorkspaceView(nextView);
+        if (nextView === "focus") window.scrollTo({ top: 0, behavior: "smooth" });
+      });
       els.pipelineTest.addEventListener("click", testPipeline);
       els.matlmStart.addEventListener("click", startMatlm);
       els.matlmStop.addEventListener("click", stopMatlm);
@@ -5226,6 +5350,7 @@
         if (file) handleJsonFile(file);
       });
 
+      setWorkspaceView("focus");
       refreshMemory(false);
       void refreshPipeline(false);
       void refreshMatlmStatus(false);

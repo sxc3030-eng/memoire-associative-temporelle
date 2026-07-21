@@ -1774,7 +1774,15 @@ class MemoryRequestHandler(BaseHTTPRequestHandler):
             LOGGER.exception("Impossible de lire un fichier statique")
             self._error(HTTPStatus.INTERNAL_SERVER_ERROR, "Interface indisponible.")
             return
-        mime = mimetypes.guess_type(candidate.name)[0] or "application/octet-stream"
+        mime_overrides = {
+            ".ico": "image/x-icon",
+            ".webp": "image/webp",
+        }
+        mime = (
+            mime_overrides.get(candidate.suffix.lower())
+            or mimetypes.guess_type(candidate.name)[0]
+            or "application/octet-stream"
+        )
         if mime.startswith("text/") or mime in {"application/javascript", "application/json"}:
             mime += "; charset=utf-8"
         cache = "public, max-age=3600" if candidate.name != "index.html" else "no-store"

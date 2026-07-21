@@ -63,6 +63,9 @@ class ServerTests(unittest.TestCase):
 
         self.assertTrue(health["ok"])
         self.assertIn("Mémoire vivante", interface)
+        self.assertIn('data-view="focus"', interface)
+        self.assertIn("/assets/matlm-icon-192.png", interface)
+        self.assertIn("/assets/matlm-dashboard-hero.webp", interface)
         self.assertEqual(remembered["intent"], "observe")
         self.assertEqual(recalled["intent"], "recall")
         self.assertEqual(predicted["intent"], "predict")
@@ -85,6 +88,32 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(prediction["data"][0]["concept"], "beta")
         self.assertEqual(knowledge["intent"], "recall")
         self.assertTrue(knowledge["data"])
+
+    def test_brand_assets_are_served_and_cacheable(self) -> None:
+        assets = (
+            "/assets/matlm-favicon.ico",
+            "/assets/matlm-icon-64.png",
+            "/assets/matlm-icon-192.png",
+            "/assets/matlm-apple-touch-icon.png",
+            "/assets/matlm-dashboard-hero.webp",
+        )
+        for path in assets:
+            with self.subTest(path=path):
+                with urlopen(self.base_url + path, timeout=5) as response:
+                    body = response.read()
+                    self.assertEqual(response.status, 200)
+                    self.assertTrue(response.headers.get_content_type().startswith("image/"))
+                    self.assertIn("max-age=3600", response.headers.get("Cache-Control", ""))
+                    self.assertGreater(len(body), 1000)
+
+        request = Request(
+            self.base_url + "/assets/matlm-dashboard-hero.webp",
+            method="HEAD",
+        )
+        with urlopen(request, timeout=5) as response:
+            self.assertEqual(response.status, 200)
+            self.assertEqual(response.headers.get_content_type(), "image/webp")
+            self.assertEqual(response.read(), b"")
 
     def test_server_refuses_non_loopback_host(self) -> None:
         with self.assertRaisesRegex(ValueError, "uniquement"):
